@@ -1,6 +1,5 @@
 import os
 import sys
-import subprocess
 
 def main():
     # Pastikan current working directory ada di root project
@@ -10,16 +9,18 @@ def main():
     # Tambahkan 'app' ke sys.path supaya import di streamlit bisa jalan mulus
     sys.path.insert(0, os.path.join(project_root, 'app'))
 
-    # Jalankan streamlit
     app_path = os.path.join('app', 'dashboard.py')
-    
     print("Mulai menjalankan Lisa Absensi Dashboard...")
+    
+    # Menjalankan streamlit langsung di dalam proses (tanpa subprocess)
+    # Ini mencegah masalah looping/tab browser terbuka berkali-kali.
     try:
-        subprocess.run([sys.executable, "-m", "streamlit", "run", app_path], check=True)
-    except KeyboardInterrupt:
-        print("\nSistem dimatikan dengan aman.")
-    except Exception as e:
-        print(f"Gagal menjalankan dashboard: {e}")
+        from streamlit.web import cli as stcli
+    except ImportError:
+        import streamlit.cli as stcli
+        
+    sys.argv = ["streamlit", "run", app_path]
+    sys.exit(stcli.main())
 
 if __name__ == "__main__":
     main()
