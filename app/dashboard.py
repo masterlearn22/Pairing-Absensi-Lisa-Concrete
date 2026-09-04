@@ -10,29 +10,42 @@ def get_lottie_html():
     import json
     import base64
     import os
+    
+    # Load check animation (default)
     try:
-        with open('assets/check.json', 'r', encoding='utf-8') as f:
-            lottie_json = f.read()
-        b64_json = base64.b64encode(lottie_json.encode('utf-8')).decode('utf-8')
-        data_uri = f"data:application/json;base64,{b64_json}"
+        with open('assets/check1.json', 'r', encoding='utf-8') as f:
+            b64_check = base64.b64encode(f.read().encode('utf-8')).decode('utf-8')
+            uri_check = f"data:application/json;base64,{b64_check}"
     except Exception:
-        data_uri = ""
+        uri_check = ""
+        
+    # Load change animation (for download section)
+    try:
+        with open('assets/change.json', 'r', encoding='utf-8') as f:
+            b64_change = base64.b64encode(f.read().encode('utf-8')).decode('utf-8')
+            uri_change = f"data:application/json;base64,{b64_change}"
+    except Exception:
+        uri_change = ""
 
     return f"""
     <script>
         const parentDoc = window.parent.document;
+        
+        // 1. Setup script
         if (!parentDoc.getElementById('lottie-script')) {{
             const script = parentDoc.createElement('script');
             script.id = 'lottie-script';
             script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
             parentDoc.head.appendChild(script);
             
+            // 2. Setup Container
             const loaderDiv = parentDoc.createElement('div');
-            loaderDiv.id = 'custom-lottie-loader';
+            loaderDiv.id = 'custom-lottie-container';
             
+            // 3. Setup CSS
             const style = parentDoc.createElement('style');
             style.innerHTML = `
-                #custom-lottie-loader {{
+                .my-lottie-player {{
                     display: none;
                     position: fixed;
                     top: 50%;
@@ -41,30 +54,45 @@ def get_lottie_html():
                     z-index: 9999999;
                     pointer-events: none;
                 }}
-                /* Make lottie visible when running */
-                .stApp[data-test-script-state="running"] #custom-lottie-loader {{
+                
+                /* Override default css */
+                .stApp[data-test-script-state="running"]::before {{ display: none !important; content: none !important; }}
+                
+                /* Switch logic based on body attribute */
+                /* Default to check animation */
+                body:not([data-lottie-action="change"]) .stApp[data-test-script-state="running"] #lottie-check {{
                     display: block !important;
                 }}
-                body[data-test-script-state="running"] #custom-lottie-loader {{
+                body:not([data-lottie-action="change"]) body[data-test-script-state="running"] #lottie-check {{
                     display: block !important;
                 }}
                 
-                /* Override previous CSS pulse loader */
-                .stApp[data-test-script-state="running"]::before {{
-                    display: none !important;
-                    content: none !important;
+                /* Show change animation */
+                body[data-lottie-action="change"] .stApp[data-test-script-state="running"] #lottie-change {{
+                    display: block !important;
+                }}
+                body[data-lottie-action="change"] body[data-test-script-state="running"] #lottie-change {{
+                    display: block !important;
                 }}
             `;
             parentDoc.head.appendChild(style);
             
+            // 4. Setup interaction listener to detect what user clicked
+            parentDoc.addEventListener('mousedown', (e) => {{
+                // Detect click on segmented control (Export format switcher)
+                if (e.target.closest('[data-testid="stSegmentedControl"]')) {{
+                    parentDoc.body.setAttribute('data-lottie-action', 'change');
+                }} else {{
+                    parentDoc.body.setAttribute('data-lottie-action', 'check');
+                }}
+            }}, true);
+            
+            // 5. Render players
             script.onload = () => {{
-                loaderDiv.innerHTML = `<lottie-player 
-                    src="{data_uri}"
-                    background="transparent" 
-                    speed="1" 
-                    style="width: 250px; height: 250px;" 
-                    loop 
-                    autoplay></lottie-player>`;
+                loaderDiv.innerHTML = `
+                    <lottie-player id="lottie-check" class="my-lottie-player" src="{uri_check}" background="transparent" speed="1" style="width: 250px; height: 250px;" loop autoplay></lottie-player>
+                    <lottie-player id="lottie-change" class="my-lottie-player" src="{uri_change}" background="transparent" speed="1" style="width: 250px; height: 250px;" loop autoplay></lottie-player>
+                `;
                 
                 const stApp = parentDoc.querySelector('.stApp');
                 if (stApp) {{
