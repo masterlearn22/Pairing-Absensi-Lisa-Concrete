@@ -360,11 +360,11 @@ def main():
                     if nip.startswith('100'): return "Staf"
                     return "Tidak Teridentifikasi"
 
-                # Apply status to dataframe for filtering
-                if 'NIP_Asli' in df.columns:
-                    df['Status_Karyawan'] = df['NIP_Asli'].apply(get_status_karyawan)
-                elif 'PIN' in df.columns:
-                    df['Status_Karyawan'] = df['PIN'].apply(get_status_karyawan)
+                # Apply status to dataframe for filtering (MUST MAP PIN TO NIP FIRST)
+                import pairing_engine
+                _, akun_to_nip_map, _ = pairing_engine.load_employee_metadata()
+                df['NIP_Mapped'] = df['PIN'].astype(str).str.strip().apply(lambda x: akun_to_nip_map.get(x, x))
+                df['Status_Karyawan'] = df['NIP_Mapped'].apply(get_status_karyawan)
 
                 col_f1, col_f2, col_f3, col_f4 = st.columns(4)
                 
