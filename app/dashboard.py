@@ -78,8 +78,7 @@ def get_lottie_html():
     """
 
 
-def apply_modern_ui()
-    components.html(get_lottie_html(), height=0, width=0):
+def apply_modern_ui():
     st.markdown("""
         <style>
         /* Sembunyikan footer bawaan Streamlit (sementara biarkan header agar tombol sidebar tetap ada) */
