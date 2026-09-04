@@ -381,12 +381,14 @@ def main():
                 
                 export_format = st.radio("Pilih Format:", ["SQL (.sql)", "Excel (.xlsx)", "CSV (.csv)"], horizontal=True, label_visibility="collapsed", key="export_fmt_radio")
                 
-                @st.cache_data
-                def get_export_data(df_to_export, s_date, e_date, fmt):
+                @st.cache_data(show_spinner=False)
+                def get_base_export_df(df_to_export, s_date, e_date):
                     df_exp = export_hrd.generate_export_hrd(df_to_export, s_date, e_date)
                     cols = ['area', 'pin', 'tgl_absensi', 'tanggal', 'jam_masuk', 'jam_pulang', 'durasi_jam', 'total_scan', 'confidence']
-                    df_final = df_exp[cols]
-                    
+                    return df_exp[cols]
+
+                @st.cache_data(show_spinner=False)
+                def format_export_data(df_final, s_date, e_date, fmt):
                     if fmt == "CSV (.csv)":
                         return df_final.to_csv(index=False, sep=';').encode('utf-8'), "text/csv", f"Export_Pairing_{s_date}_sd_{e_date}.csv"
                     elif fmt == "Excel (.xlsx)":
@@ -398,6 +400,7 @@ def main():
                         table_name = "t_absensi_solutions_harian"
                         sql_statements = [f"INSERT INTO `{table_name}` (`area`, `pin`, `tgl_absensi`, `tanggal`, `jam_masuk`, `jam_pulang`, `durasi_jam`, `total_scan`, `confidence`) VALUES"]
                         val_lines = []
+                        cols = list(df_final.columns)
                         for _, row in df_final.iterrows():
                             vals = []
                             for col_name, val in zip(cols, row):
@@ -415,8 +418,9 @@ def main():
                         sql_text = sql_statements[0] + "\n" + ",\n".join(val_lines) + ";"
                         return sql_text.encode('utf-8'), "text/plain", f"Export_Pairing_{s_date}_sd_{e_date}.sql"
 
-                with st.spinner("Mempersiapkan data unduhan..."):
-                    file_data, mime_type, file_name = get_export_data(df, start_date, end_date, export_format)
+                # Jalankan tanpa spinner eksplisit agar UI tidak melompat
+                df_base = get_base_export_df(df, start_date, end_date)
+                file_data, mime_type, file_name = format_export_data(df_base, start_date, end_date, export_format)
                 
                 c_exp, c_info = st.columns([1, 2])
                 with c_exp:
