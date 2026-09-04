@@ -437,8 +437,18 @@ def main():
         _, akun_to_nip, _ = pairing_engine.load_employee_metadata()
         summary['NIP'] = summary['PIN'].apply(lambda x: akun_to_nip.get(str(x), str(x)))
         
+        def get_status_karyawan(nip):
+            nip_str = str(nip).strip()
+            if nip_str.startswith('209'): return 'Outsourcing Baru'
+            if nip_str.startswith('206') or nip_str.startswith('216'): return 'PHL (Harian Lepas)'
+            if nip_str.startswith('201') or nip_str.startswith('202') or nip_str.startswith('203'): return 'Tetap / Kontrak'
+            if nip_str.startswith('100'): return 'Staf'
+            return 'Lainnya'
+            
+        summary['Status'] = summary['NIP'].apply(get_status_karyawan)
+        
         # Susun ulang kolom
-        summary = summary[['PIN', 'NIP', 'Nama_Karyawan', 'Total_Hari_Hadir', 'Total_Scan', 'Total_Hari_Lembur', 'Total_Error_Absen']]
+        summary = summary[['PIN', 'NIP', 'Status', 'Nama_Karyawan', 'Total_Hari_Hadir', 'Total_Scan', 'Total_Hari_Lembur', 'Total_Error_Absen']]
 
         summary = summary.sort_values(by='Total_Hari_Hadir', ascending=False)
         
@@ -455,7 +465,7 @@ def main():
         st.write("") # spacing
 
         # Buat dictionary untuk selectbox (Pin -> Text)
-        pin_to_name = {row['PIN']: f"{row['NIP']} - {str(row['Nama_Karyawan'])}" for _, row in summary.iterrows()}
+        pin_to_name = {row['PIN']: f"{row['NIP']} - {str(row['Nama_Karyawan'])} ({row['Status']})" for _, row in summary.iterrows()}
 
         # PINDAHKAN SELECTBOX KE ATAS TABEL
         selected_pin = st.selectbox(
@@ -476,6 +486,7 @@ def main():
             column_config={
                 "PIN": st.column_config.TextColumn("PIN (Mesin)", width="small"),
                 "NIP": st.column_config.TextColumn("NIP", width="small"),
+                "Status": st.column_config.TextColumn("Status Karyawan", width="medium"),
                 "Nama_Karyawan": st.column_config.TextColumn("Nama Lengkap", width="medium"),
                 "Total_Hari_Hadir": st.column_config.ProgressColumn(
                     "Total Kehadiran",
