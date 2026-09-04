@@ -23,6 +23,9 @@ def generate_export_hrd(df_paired, start_date, end_date):
     df_paired: DataFrame dari Hasil_Pairing_Absensi_Dengan_Shift_Revisi.csv
     start_date, end_date: datetime.date
     """
+    import pairing_engine
+    _, akun_to_nip, _ = pairing_engine.load_employee_metadata()
+    
     hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
     
     # Ambil daftar unik karyawan
@@ -43,6 +46,8 @@ def generate_export_hrd(df_paired, start_date, end_date):
     for _, k in karyawan_list.iterrows():
         pin = str(k['PIN']).strip()
         nama = str(k['Nama_Karyawan'])
+        real_nip = akun_to_nip.get(pin, pin) # Gunakan NIP asli, jika tidak ada fallback ke PIN
+
         
         for d in date_range:
             d_str = d.strftime('%Y-%m-%d')
@@ -115,7 +120,7 @@ def generate_export_hrd(df_paired, start_date, end_date):
                     
                 spkl = "Tdk. Ada SPKL"
                 if jml_lmbr > 0:
-                    spkl = f"{pin}{d.strftime('%d%m%Y')}{jsls.replace(':', '')}"
+                    spkl = f"{real_nip}{d.strftime('%d%m%Y')}{jsls.replace(':', '')}"
                     
                 catatan = ""
                 stsdate = "OK"
@@ -127,7 +132,7 @@ def generate_export_hrd(df_paired, start_date, end_date):
                     stsdate = "NOT OK"
                     
                 rows.append({
-                    'Nip': pin,
+                    'Nip': real_nip,
                     'Nama': nama,
                     'Hari': hari,
                     'TTgs': ttgs,
@@ -151,7 +156,7 @@ def generate_export_hrd(df_paired, start_date, end_date):
             else:
                 # Bolong / Tidak ada data
                 rows.append({
-                    'Nip': pin,
+                    'Nip': real_nip,
                     'Nama': nama,
                     'Hari': hari,
                     'TTgs': ttgs,
