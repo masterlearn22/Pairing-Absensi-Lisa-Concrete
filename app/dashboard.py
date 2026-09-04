@@ -145,7 +145,7 @@ def main():
     st.write(
         "Mengelola riwayat absensi karyawan dan referensi shift kerja yang dinamis.")
 
-    tab1, tab_upload, tab2 = st.tabs(["📊 Dashboard Kehadiran", "📤 Upload & Pairing Log Finger", "🏢 Master Data Shift"])
+    tab1, tab_upload, tab2, tab_laporan = st.tabs(["📊 Dashboard Kehadiran", "📤 Upload & Pairing Log Finger", "🏢 Master Data Shift", "🚨 Laporan Anomali"])
 
     with tab2:
         st.header("🏢 Master Data Shift Kerja")
@@ -499,8 +499,8 @@ def main():
                     else:
                         st.info("Karyawan ini tidak memiliki data log mentah.")
 
+    with tab_laporan:
         # --- LAPORAN KORBAN SISTEM LAMA (GLOBAL, LEBAR PENUH) ---
-        st.divider()
         st.header("🚨 Laporan Global: Korban Anomali Sistem Lama")
         st.write("Tabel di bawah ini menampilkan **seluruh daftar kejadian** di mana perhitungan sistem lama (atasan) dipastikan hancur karena memotong hari kalender di tengah shift malam atau karena lupa absen.")
 
@@ -509,13 +509,20 @@ def main():
             df_korban = pd.read_csv(file_korban)
             df_korban['PIN'] = df_korban['PIN'].astype(str)
 
-            # Filter berdasarkan rentang tanggal dashboard
-            if len(date_range) == 2:
-                start_date, end_date = date_range
-                mask_korban = (pd.to_datetime(df_korban['Tanggal']).dt.date >= start_date) & (
-                    pd.to_datetime(df_korban['Tanggal']).dt.date <= end_date)
-                df_korban_filtered = df_korban[mask_korban].copy()
+            # Filter berdasarkan rentang tanggal dashboard yang diset di tab1
+            # Periksa apakah date_range terdefinisi (bisa jadi error kalau user blm interaksi)
+            try:
+                if len(date_range) == 2:
+                    start_date, end_date = date_range
+                    mask_korban = (pd.to_datetime(df_korban['Tanggal']).dt.date >= start_date) & (
+                        pd.to_datetime(df_korban['Tanggal']).dt.date <= end_date)
+                    df_korban_filtered = df_korban[mask_korban].copy()
+                else:
+                    df_korban_filtered = pd.DataFrame()
+            except NameError:
+                df_korban_filtered = pd.DataFrame()
 
+            if not df_korban_filtered.empty:
                 k1, k2, k3 = st.columns(3)
                 k1.metric("Total Insiden (Di Rentang Ini)",
                           f"{len(df_korban_filtered)} Kejadian")
@@ -561,14 +568,17 @@ def main():
                     c1, c2 = st.columns(2)
                     with c1:
                         st.markdown("**✅ Hasil Sistem Baru (Akurat)**")
-                        # df adalah dataframe utama kita yang sudah di-load di atas
-                        our_anomali = df[(df['PIN'].astype(str) == k_pin) & (
-                            df['Tanggal'] == k_tgl)].copy()
-                        if not our_anomali.empty:
-                            st.dataframe(our_anomali[[
-                                         'Tanggal', 'Shift', 'Jam_Masuk', 'Jam_Keluar', 'Keterangan']], hide_index=True, use_container_width=True)
-                        else:
-                            st.write("Data tidak ditemukan.")
+                        try:
+                            # df adalah dataframe utama kita yang sudah di-load di atas
+                            our_anomali = df[(df['PIN'].astype(str) == k_pin) & (
+                                df['Tanggal'] == k_tgl)].copy()
+                            if not our_anomali.empty:
+                                st.dataframe(our_anomali[[
+                                             'Tanggal', 'Shift', 'Jam_Masuk', 'Jam_Keluar', 'Keterangan']], hide_index=True, use_container_width=True)
+                            else:
+                                st.write("Data tidak ditemukan.")
+                        except NameError:
+                            st.write("Silakan buka tab Dashboard Kehadiran terlebih dahulu.")
 
                     with c2:
                         st.markdown(
@@ -585,6 +595,8 @@ def main():
                                     "Data di sistem atasan kosong atau hilang untuk tanggal ini!")
                         else:
                             st.warning("Data atasan tidak dapat dimuat.")
+            else:
+                st.info("Pilih rentang tanggal di tab Dashboard Kehadiran untuk melihat laporan.")
         else:
             st.info(
                 "File laporan korban belum tersedia. Silakan jalankan script `generate_victims.py`")
