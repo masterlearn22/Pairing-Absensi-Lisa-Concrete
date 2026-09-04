@@ -404,6 +404,9 @@ def main():
                                     vals.append("NULL")
                                 elif isinstance(val, str):
                                     clean_val = val.replace("'", "''")
+                                    if col_name in ['jam_masuk', 'jam_pulang', 'tgl_absensi', 'tanggal']:
+                                        if ", " in clean_val:
+                                            clean_val = clean_val.split(", ")[1]
                                     vals.append(f"'{clean_val}'")
                                 else:
                                     vals.append(str(val))

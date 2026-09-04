@@ -25,6 +25,7 @@ def generate_export_hrd(df_paired, start_date, end_date):
     Kolom: area, pin, tgl_absensi, tanggal, jam_masuk, jam_pulang, durasi_jam, total_scan, confidence
     """
     rows = []
+    hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
     
     # Filter data berdasarkan rentang tanggal
     # (Opsional jika df_paired sudah difilter dari luar, tapi untuk jaga-jaga kita iterasi semua)
@@ -57,11 +58,31 @@ def generate_export_hrd(df_paired, start_date, end_date):
                 dt_out = pd.to_datetime(jam_pulang)
                 durasi_sec = (dt_out - dt_in).total_seconds()
                 durasi_jam = round(durasi_sec / 3600.0, 2)
+                
+                hari_in = hari_map[dt_in.weekday()]
+                hari_out = hari_map[dt_out.weekday()]
+                jam_masuk = f"{hari_in}, {jam_masuk}"
+                jam_pulang = f"{hari_out}, {jam_pulang}"
             except Exception:
                 pass
+        elif jam_masuk:
+            try:
+                dt_in = pd.to_datetime(jam_masuk)
+                jam_masuk = f"{hari_map[dt_in.weekday()]}, {jam_masuk}"
+            except Exception:
+                pass
+            confidence = 20
         else:
             # Jika bolong
             confidence = 20
+
+        try:
+            dt_tgl = pd.to_datetime(tgl_absensi)
+            tgl_str = f"{hari_map[dt_tgl.weekday()]}, {tgl_absensi}"
+            tgl_absensi = tgl_str
+            tanggal = tgl_str
+        except Exception:
+            pass
 
         total_scan = 1
         try:
