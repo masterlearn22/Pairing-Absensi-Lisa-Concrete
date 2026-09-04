@@ -6,7 +6,7 @@ import pairing_engine
 
 
 def load_data():
-    file_path = "Hasil_Pairing_Absensi_Dengan_Shift_Revisi.csv"
+    file_path = "database/active/Hasil_Pairing_Absensi_Dengan_Shift_Revisi.csv"
     if not os.path.exists(file_path):
         return pd.DataFrame()
     df = pd.read_csv(file_path)
@@ -16,7 +16,7 @@ def load_data():
 
 @st.cache_data
 def load_shift_data():
-    file_path = "Data_Shift.csv"
+    file_path = "database/master/Data_Shift.csv"
     if not os.path.exists(file_path):
         return pd.DataFrame()
     df = pd.read_csv(file_path)
@@ -29,7 +29,7 @@ def load_boss_data():
     boss_data = []
     pattern = re.compile(
         r"\('([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*([^,]+),\s*([^,]+),\s*([^)]+)\)")
-    filepath = 't_absensi_solutions_harian.sql'
+    filepath = 'database/master/t_absensi_solutions_harian.sql'
     if not os.path.exists(filepath):
         return pd.DataFrame()
 
@@ -53,9 +53,9 @@ def load_boss_data():
 
 @st.cache_data
 def load_raw_data():
-    if os.path.exists('Raw_Logs.csv'):
+    if os.path.exists('database/active/Raw_Logs.csv'):
         try:
-            df_raw = pd.read_csv('Raw_Logs.csv')
+            df_raw = pd.read_csv('database/active/Raw_Logs.csv')
             df_raw['PIN'] = df_raw['PIN'].astype(str)
             df_raw['Log_Time'] = pd.to_datetime(df_raw['Waktu_Scan'], errors='coerce')
             df_raw['Status'] = df_raw['Status'].apply(lambda x: "Keluar (OUT)" if str(x) == "1" else "Masuk (IN)")
@@ -68,7 +68,7 @@ def load_raw_data():
     raw_data = []
     pattern = re.compile(
         r"\('([^']*)',\s*'([^']*)',\s*'([^']*)',\s*(\d+),\s*'([^']*)'\)")
-    filepath = 't_absensi_solutions_fp.sql'
+    filepath = 'database/master/t_absensi_solutions_fp.sql'
     if not os.path.exists(filepath):
         return pd.DataFrame()
 
@@ -166,9 +166,9 @@ def main():
         # Statistik Data Saat Ini
         c_stat1, c_stat2, c_stat3 = st.columns(3)
         total_raw = 0
-        if os.path.exists("Raw_Logs.csv"):
+        if os.path.exists("database/active/Raw_Logs.csv"):
             try:
-                df_rl = pd.read_csv("Raw_Logs.csv")
+                df_rl = pd.read_csv("database/active/Raw_Logs.csv")
                 total_raw = len(df_rl)
             except Exception:
                 pass
@@ -523,7 +523,7 @@ def main():
         st.header("🚨 Laporan Global: Korban Anomali Sistem Lama")
         st.write("Tabel di bawah ini menampilkan **seluruh daftar kejadian** di mana perhitungan sistem lama (atasan) dipastikan hancur karena memotong hari kalender di tengah shift malam atau karena lupa absen.")
 
-        file_korban = "Laporan_Detail_Korban_Sistem_Lama.csv"
+        file_korban = "database/active/Laporan_Detail_Korban_Sistem_Lama.csv"
         if os.path.exists(file_korban):
             df_korban = pd.read_csv(file_korban)
             df_korban['PIN'] = df_korban['PIN'].astype(str)

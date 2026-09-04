@@ -23,12 +23,12 @@ DICT_AREA_CODES = {
     'SF': 'SF', 'BF': 'BF', 'SO': 'SO', 'BO': 'BO'
 }
 
-RAW_LOGS_FILE = 'Raw_Logs.csv'
-PAIRED_FILE = 'Hasil_Pairing_Absensi_Dengan_Shift_Revisi.csv'
-SHIFT_FILE = 'Data_Shift.csv'
-KERJA_FILE = 'Data_Kerja.csv'
-AKUN_FILE = 't_dt_usr_akun.sql'
-INITIAL_SQL_FILE = 't_absensi_solutions_fp.sql'
+RAW_LOGS_FILE = 'database/active/Raw_Logs.csv'
+PAIRED_FILE = 'database/active/Hasil_Pairing_Absensi_Dengan_Shift_Revisi.csv'
+SHIFT_FILE = 'database/master/Data_Shift.csv'
+KERJA_FILE = 'database/master/Data_Kerja.csv'
+AKUN_FILE = 'database/master/t_dt_usr_akun.sql'
+INITIAL_SQL_FILE = 'database/master/t_absensi_solutions_fp.sql'
 
 
 def get_shift_category(name):
