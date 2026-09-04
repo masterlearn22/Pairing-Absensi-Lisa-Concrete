@@ -60,6 +60,31 @@ def apply_modern_ui():
             border-radius: 10px;
             overflow: hidden;
         }
+        
+        /* Animasi Loading Kustom untuk menggantikan efek redup yang terlihat seperti error */
+        .stApp[data-test-script-state="running"]::before {
+            content: "🔄 Memuat Data...";
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ff4b4b;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+            z-index: 9999999;
+            pointer-events: none;
+            animation: pulse-loader 1s infinite alternate;
+        }
+
+        @keyframes pulse-loader {
+            0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.8; box-shadow: 0 0 0 rgba(255, 75, 75, 0.4); }
+            100% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.6); }
+        }
+
         </style>
     """, unsafe_allow_html=True)
 
