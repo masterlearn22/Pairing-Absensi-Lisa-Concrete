@@ -470,6 +470,17 @@ def run_pairing_process(df_raw, classifier=None):
 
             if i + 1 < n:
                 duration = (scans[i+1] - in_time).total_seconds() / 3600
+                
+                # Look-ahead heuristic: Mencegah desync akibat log pertama adalah OUT dari hari sebelumnya
+                if duration > 13 and i + 2 < n:
+                    duration_next = (scans[i+2] - scans[i+1]).total_seconds() / 3600
+                    err_curr = abs(duration - 8.5)
+                    err_next = abs(duration_next - 8.5)
+                    # Jika pairing berikutnya JAUH lebih mendekati jam kerja normal (8.5 jam)
+                    if err_curr > err_next + 4:
+                        i += 1
+                        continue
+
                 if duration <= 17:
                     out_time = scans[i+1]
                     out_area = areas[i+1]
