@@ -7,13 +7,12 @@ import pairing_engine
 def apply_modern_ui():
     st.markdown("""
         <style>
-        /* Sembunyikan header dan footer bawaan Streamlit */
+        /* Sembunyikan footer bawaan Streamlit (sementara biarkan header agar tombol sidebar tetap ada) */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        header {visibility: hidden;}
         
-        /* Jarak atas agar tidak terlalu kosong karena header disembunyikan */
-        .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+        /* Kurangi jarak atas karena Streamlit punya header bawaan */
+        .block-container { padding-top: 1rem; padding-bottom: 2rem; }
         
         /* Bikin Metric menjadi seperti Card Modern */
         div[data-testid="stMetric"] {
