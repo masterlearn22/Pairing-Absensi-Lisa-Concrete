@@ -433,6 +433,13 @@ def main():
             Total_Error_Absen=('Is_Error', 'sum')
         ).reset_index()
 
+        # Tambahkan NIP Asli
+        _, akun_to_nip, _ = pairing_engine.load_employee_metadata()
+        summary['NIP'] = summary['PIN'].apply(lambda x: akun_to_nip.get(str(x), str(x)))
+        
+        # Susun ulang kolom
+        summary = summary[['PIN', 'NIP', 'Nama_Karyawan', 'Total_Hari_Hadir', 'Total_Scan', 'Total_Hari_Lembur', 'Total_Error_Absen']]
+
         summary = summary.sort_values(by='Total_Hari_Hadir', ascending=False)
         
         total_karyawan = summary['PIN'].nunique()
@@ -448,7 +455,7 @@ def main():
         st.write("") # spacing
 
         # Buat dictionary untuk selectbox (Pin -> Text)
-        pin_to_name = {row['PIN']: str(row['Nama_Karyawan']) for _, row in summary.iterrows()}
+        pin_to_name = {row['PIN']: f"{row['NIP']} - {str(row['Nama_Karyawan'])}" for _, row in summary.iterrows()}
 
         # PINDAHKAN SELECTBOX KE ATAS TABEL
         selected_pin = st.selectbox(
@@ -467,7 +474,8 @@ def main():
             on_select="rerun",
             selection_mode="single-row",
             column_config={
-                "PIN": st.column_config.TextColumn("PIN", width="small"),
+                "PIN": st.column_config.TextColumn("PIN (Mesin)", width="small"),
+                "NIP": st.column_config.TextColumn("NIP", width="small"),
                 "Nama_Karyawan": st.column_config.TextColumn("Nama Lengkap", width="medium"),
                 "Total_Hari_Hadir": st.column_config.ProgressColumn(
                     "Total Kehadiran",
