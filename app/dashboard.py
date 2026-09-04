@@ -202,8 +202,80 @@ def hitung_lembur_row(row):
         return "-"
 
 
+
+@st.dialog("Detail Karyawan", width="large")
+def show_employee_detail(selected_id, summary, df, start_date, end_date):
+    # Ekstrak pin dan area dari ID Unik
+    pin_part, area_part = selected_id.split("___")
+    from pairing_engine import DICT_AREA_CODES
+    short_area_code = DICT_AREA_CODES.get(area_part, area_part)
+    
+    selected_name = summary.loc[summary['ID_Unik'] == selected_id, 'Nama_Karyawan'].values[0]
+    st.subheader(f"{selected_name} ({area_part})")
+
+    # Filter data khusus karyawan ini
+    df_detail = df[(df['PIN'].astype(str) == pin_part) & (df['Kode_Area'].astype(str) == area_part)].copy()
+
+    import export_hrd
+    df_detail_hrd = export_hrd.generate_export_hrd(df_detail, start_date, end_date)
+    if 'Stsdate' in df_detail_hrd.columns:
+        df_detail_hrd = df_detail_hrd.drop(columns=['Stsdate'])
+
+    total_hari = df_detail['Tanggal_Date'].nunique()
+    lembur_days = df_detail[df_detail['Jam Lembur'] != '-'].shape[0]
+
+    m1, m2 = st.columns(2)
+    m1.metric("Total Kehadiran", f"{total_hari} Hari")
+    m2.metric("Total Hari Lembur", f"{lembur_days} Hari")
+
+    st.dataframe(df_detail_hrd, use_container_width=True, hide_index=True)
+
+    with st.expander("⚖️ Lihat Komparasi dengan Data Atasan (Sistem Lama)"):
+        df_boss = load_boss_data()
+        if df_boss.empty:
+            st.warning("Data atasan tidak ditemukan.")
+        else:
+            df_boss_filtered = df_boss[(df_boss['PIN'].astype(str) == pin_part) & (df_boss['Kode_Area'].astype(str) == short_area_code)]
+            mask_boss = (df_boss_filtered['Tanggal'] >= start_date.strftime('%Y-%m-%d')) & (df_boss_filtered['Tanggal'] <= end_date.strftime('%Y-%m-%d'))
+            df_boss_filtered = df_boss_filtered.loc[mask_boss]
+
+            if not df_boss_filtered.empty:
+                df_boss_filtered = df_boss_filtered.sort_values(by='Tanggal', ascending=False)
+                hari_indo = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
+                df_boss_filtered['Tanggal'] = pd.to_datetime(df_boss_filtered['Tanggal']).apply(
+                    lambda x: f"{hari_indo[x.weekday()]}, {x.strftime('%Y-%m-%d')}"
+                )
+                st.dataframe(df_boss_filtered, use_container_width=True, hide_index=True)
+            else:
+                st.info("Tidak ada data untuk karyawan ini di file atasan.")
+
+    with st.expander("🔍 Lihat Riwayat Tap Mesin Mentah (Raw Logs)"):
+        df_raw = load_raw_data()
+        if df_raw.empty:
+            st.warning("Data mentah tidak ditemukan.")
+        else:
+            df_raw_filtered = df_raw[(df_raw['PIN'].astype(str) == pin_part) & (df_raw['Kode_Area'].astype(str) == short_area_code)].copy()
+            if not df_raw_filtered.empty:
+                mask_raw = (df_raw_filtered['Log_Time'].dt.date >= start_date) & (df_raw_filtered['Log_Time'].dt.date <= end_date)
+                df_raw_filtered = df_raw_filtered.loc[mask_raw]
+                if not df_raw_filtered.empty:
+                    df_raw_filtered = df_raw_filtered.sort_values(by='Log_Time', ascending=False)
+                    hari_indo = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
+                    df_raw_filtered['Tanggal'] = df_raw_filtered['Log_Time'].apply(
+                        lambda x: f"{hari_indo[x.weekday()]}, {x.strftime('%Y-%m-%d')}"
+                    )
+                    df_raw_filtered['Jam'] = df_raw_filtered['Log_Time'].dt.strftime('%H:%M:%S')
+                    df_raw_filtered['Nama_Karyawan'] = selected_name
+                    cols_raw = ['Kode_Area', 'PIN', 'Nama_Karyawan', 'Tanggal', 'Jam', 'Status']
+                    st.dataframe(df_raw_filtered[cols_raw], use_container_width=True, hide_index=True)
+                else:
+                    st.info("Tidak ada log tap mesin mentah untuk karyawan ini.")
+            else:
+                st.info("Karyawan ini tidak memiliki data log mentah.")
+
 def main():
-    st.set_page_config(layout="wide", page_title="Dashboard Absensi & Shift")
+
+    st.set_page_config(layout="wide", page_title="Dashboard Absensi & Shift", initial_sidebar_state="expanded")
     apply_modern_ui()
 
     st.title("📊 Sistem Terpadu Absensi & Shift Kerja")
@@ -358,46 +430,46 @@ def main():
         df['Is_Error'] = df.apply(is_error, axis=1)
         df['Is_Lembur'] = df['Jam Lembur'].apply(lambda x: 1 if str(x) != '-' else 0)
 
-        st.divider()
-        st.header("📅 Filter Rentang Tanggal")
+        with st.sidebar:
+            st.header("📅 Filter Rentang Tanggal")
 
-        min_date = df['Tanggal_Date'].min()
-        max_date = df['Tanggal_Date'].max()
+            min_date = df['Tanggal_Date'].min()
+            max_date = df['Tanggal_Date'].max()
 
-        # Default rentang: 21-20 (Siklus Kerja Lisa Concrete Indonesia)
-        import datetime
-        
-        if max_date.day <= 20:
-            # Periode: 21 bulan lalu s/d 20 bulan ini
-            if max_date.month == 1:
-                default_start = datetime.date(max_date.year - 1, 12, 21)
+            # Default rentang: 21-20 (Siklus Kerja Lisa Concrete Indonesia)
+            import datetime
+            
+            if max_date.day <= 20:
+                # Periode: 21 bulan lalu s/d 20 bulan ini
+                if max_date.month == 1:
+                    default_start = datetime.date(max_date.year - 1, 12, 21)
+                else:
+                    default_start = datetime.date(max_date.year, max_date.month - 1, 21)
+                default_end = datetime.date(max_date.year, max_date.month, 20)
             else:
-                default_start = datetime.date(max_date.year, max_date.month - 1, 21)
-            default_end = datetime.date(max_date.year, max_date.month, 20)
-        else:
-            # Periode: 21 bulan ini s/d 20 bulan depan
-            default_start = datetime.date(max_date.year, max_date.month, 21)
-            if max_date.month == 12:
-                default_end = datetime.date(max_date.year + 1, 1, 20)
-            else:
-                default_end = datetime.date(max_date.year, max_date.month + 1, 20)
-                
-        # Mencegah error Streamlit jika default di luar rentang min_date atau max_date
-        default_start = max(default_start, min_date)
-        default_end = min(default_end, max_date)
-        
-        # Pastikan start <= end
-        if default_start > default_end:
-            default_start = default_end
+                # Periode: 21 bulan ini s/d 20 bulan depan
+                default_start = datetime.date(max_date.year, max_date.month, 21)
+                if max_date.month == 12:
+                    default_end = datetime.date(max_date.year + 1, 1, 20)
+                else:
+                    default_end = datetime.date(max_date.year, max_date.month + 1, 20)
+                    
+            # Mencegah error Streamlit jika default di luar rentang min_date atau max_date
+            default_start = max(default_start, min_date)
+            default_end = min(default_end, max_date)
+            
+            # Pastikan start <= end
+            if default_start > default_end:
+                default_start = default_end
 
-        col_filter, _ = st.columns([1, 2])
-        with col_filter:
             date_range = st.date_input(
                 "Mulai dari - Sampai dengan:",
                 value=(default_start, default_end),
                 min_value=min_date,
                 max_value=max_date
             )
+            
+            st.divider()
 
         if len(date_range) == 2:
             start_date, end_date = date_range
@@ -405,9 +477,9 @@ def main():
             df = df[(df['Tanggal_Date'] >= start_date)
                     & (df['Tanggal_Date'] <= end_date)]
 
-            # --- FILTER TAMBAHAN ---
-            with st.container(border=True):
-                st.markdown("#### 🎛️ Filter Data Tambahan")
+            # --- FILTER TAMBAHAN (SIDEBAR) ---
+            with st.sidebar:
+                st.markdown("#### 🎛️ Filter Karyawan")
                 
                 # Fungsi Helper Status Karyawan
                 def get_status_karyawan(nip):
@@ -418,41 +490,35 @@ def main():
                     if nip.startswith('100'): return "Staf"
                     return "Tidak Teridentifikasi"
 
-                # Apply status to dataframe for filtering (MUST MAP PIN TO NIP FIRST)
+                # Apply status to dataframe for filtering
                 import pairing_engine
                 _, akun_to_nip_map, _ = pairing_engine.load_employee_metadata()
                 df['NIP_Mapped'] = df['PIN'].astype(str).str.strip().apply(lambda x: akun_to_nip_map.get(x, x))
                 df['Status_Karyawan'] = df['NIP_Mapped'].apply(get_status_karyawan)
 
-                col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-                
-                with col_f1:
-                    if 'Kode_Area' in df.columns:
-                        area_options = ["Semua Lokasi"] + sorted([str(x) for x in df['Kode_Area'].unique() if str(x) != 'nan' and str(x) != '-'])
-                        selected_area = st.selectbox("Lokasi Pabrik:", area_options)
-                        if selected_area != "Semua Lokasi":
-                            df = df[df['Kode_Area'].astype(str) == selected_area]
-                            
-                with col_f2:
-                    if 'Kode_Divisi' in df.columns:
-                        divisi_options = ["Semua Divisi"] + sorted([str(x) for x in df['Kode_Divisi'].unique() if str(x) != 'nan' and str(x) != '-'])
-                        selected_div = st.selectbox("Departemen:", divisi_options)
-                        if selected_div != "Semua Divisi":
-                            df = df[df['Kode_Divisi'].astype(str) == selected_div]
+                if 'Kode_Area' in df.columns:
+                    area_options = ["Semua Lokasi"] + sorted([str(x) for x in df['Kode_Area'].unique() if str(x) != 'nan' and str(x) != '-'])
+                    selected_area = st.selectbox("Lokasi Pabrik:", area_options)
+                    if selected_area != "Semua Lokasi":
+                        df = df[df['Kode_Area'].astype(str) == selected_area]
+                        
+                if 'Kode_Divisi' in df.columns:
+                    divisi_options = ["Semua Divisi"] + sorted([str(x) for x in df['Kode_Divisi'].unique() if str(x) != 'nan' and str(x) != '-'])
+                    selected_div = st.selectbox("Departemen:", divisi_options)
+                    if selected_div != "Semua Divisi":
+                        df = df[df['Kode_Divisi'].astype(str) == selected_div]
 
-                with col_f3:
-                    if 'Shift' in df.columns:
-                        shift_options = ["Semua Shift"] + sorted([str(x) for x in df['Shift'].unique() if str(x) != 'nan' and str(x) != '-'])
-                        selected_shift = st.selectbox("Tipe Shift:", shift_options)
-                        if selected_shift != "Semua Shift":
-                            df = df[df['Shift'].astype(str) == selected_shift]
+                if 'Shift' in df.columns:
+                    shift_options = ["Semua Shift"] + sorted([str(x) for x in df['Shift'].unique() if str(x) != 'nan' and str(x) != '-'])
+                    selected_shift = st.selectbox("Tipe Shift:", shift_options)
+                    if selected_shift != "Semua Shift":
+                        df = df[df['Shift'].astype(str) == selected_shift]
 
-                with col_f4:
-                    if 'Status_Karyawan' in df.columns:
-                        status_options = ["Semua Status"] + sorted([str(x) for x in df['Status_Karyawan'].unique() if str(x) != 'nan'])
-                        selected_status = st.selectbox("Status Karyawan:", status_options)
-                        if selected_status != "Semua Status":
-                            df = df[df['Status_Karyawan'].astype(str) == selected_status]
+                if 'Status_Karyawan' in df.columns:
+                    status_options = ["Semua Status"] + sorted([str(x) for x in df['Status_Karyawan'].unique() if str(x) != 'nan'])
+                    selected_status = st.selectbox("Status Karyawan:", status_options)
+                    if selected_status != "Semua Status":
+                        df = df[df['Status_Karyawan'].astype(str) == selected_status]
             
             # --- EKSPOR HRD ---
             with st.container(border=True):
@@ -626,88 +692,10 @@ def main():
             selected_row_index = event.selection.rows[0]
             selected_id = summary.iloc[selected_row_index]['ID_Unik']
 
-        st.divider()
 
-        if selected_id:
-            with st.container(border=True):
-                # Ekstrak pin dan area dari ID Unik
-                pin_part, area_part = selected_id.split("___")
-                # Convert area_part to its short code (e.g., 'Bali Factory' -> 'BF')
-                from pairing_engine import DICT_AREA_CODES
-                short_area_code = DICT_AREA_CODES.get(area_part, area_part)
-                
-                selected_name = summary.loc[summary['ID_Unik'] == selected_id, 'Nama_Karyawan'].values[0]
-                
-                st.subheader(f"Detail Absensi (Raw Pairing): {selected_name} ({area_part})")
-    
-                # Filter data khusus karyawan ini (PIN & AREA yang sama)
-                df_detail = df[(df['PIN'].astype(str) == pin_part) & (df['Kode_Area'].astype(str) == area_part)].copy()
-    
-                # Buat format HRD untuk ditampilkan di layar
-                import export_hrd
-                df_detail_hrd = export_hrd.generate_export_hrd(df_detail, start_date, end_date)
-                # Hilangkan kolom Stsdate sesuai permintaan
-                if 'Stsdate' in df_detail_hrd.columns:
-                    df_detail_hrd = df_detail_hrd.drop(columns=['Stsdate'])
-    
-                # Statistik cepat
-                total_hari = df_detail['Tanggal_Date'].nunique()
-                lembur_days = df_detail[df_detail['Jam Lembur'] != '-'].shape[0]
-    
-                m1, m2 = st.columns(2)
-                m1.metric("Total Kehadiran (Ada Tap)", f"{total_hari} Hari")
-                m2.metric("Total Hari Lembur", f"{lembur_days} Hari")
-    
-                st.dataframe(df_detail_hrd, use_container_width=True, hide_index=True)
-    
-                # --- BAGIAN KOMPARASI DATA ATASAN ---
-                with st.expander("⚖️ Lihat Komparasi dengan Data Atasan (Sistem Lama)"):
-                    st.write("Berikut adalah data asli dari sistem atasan untuk karyawan yang sama dan pada rentang tanggal yang sama, sebagai bahan perbandingan.")
-                    df_boss = load_boss_data()
-                    if df_boss.empty:
-                        st.warning("File t_absensi_solutions_harian.sql tidak ditemukan atau gagal dibaca.")
-                    else:
-                        df_boss_filtered = df_boss[(df_boss['PIN'].astype(str) == pin_part) & (df_boss['Kode_Area'].astype(str) == short_area_code)]
-                        mask_boss = (df_boss_filtered['Tanggal'] >= start_date.strftime('%Y-%m-%d')) & (df_boss_filtered['Tanggal'] <= end_date.strftime('%Y-%m-%d'))
-                        df_boss_filtered = df_boss_filtered.loc[mask_boss]
-    
-                        if not df_boss_filtered.empty:
-                            df_boss_filtered = df_boss_filtered.sort_values(by='Tanggal', ascending=False)
-                            hari_indo = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
-                            df_boss_filtered['Tanggal'] = pd.to_datetime(df_boss_filtered['Tanggal']).apply(
-                                lambda x: f"{hari_indo[x.weekday()]}, {x.strftime('%Y-%m-%d')}"
-                            )
-                            st.dataframe(df_boss_filtered, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Tidak ada data untuk karyawan ini di file atasan pada rentang tanggal tersebut.")
-    
-                # --- BAGIAN RAW DATA ---
-                with st.expander("🔍 Lihat Riwayat Tap Mesin Mentah (Raw Logs)"):
-                    st.write("Di bawah ini adalah data mentah setiap kali jari karyawan menempel di mesin absensi (tanpa ada proses pairing). Status IN/OUT berasal dari settingan default mesin.")
-                    df_raw = load_raw_data()
-                    if df_raw.empty:
-                        st.warning("Data mentah tidak ditemukan.")
-                    else:
-                        df_raw_filtered = df_raw[(df_raw['PIN'].astype(str) == pin_part) & (df_raw['Kode_Area'].astype(str) == short_area_code)].copy()
-                        if not df_raw_filtered.empty:
-                            mask_raw = (df_raw_filtered['Log_Time'].dt.date >= start_date) & (df_raw_filtered['Log_Time'].dt.date <= end_date)
-                            df_raw_filtered = df_raw_filtered.loc[mask_raw]
-    
-                            if not df_raw_filtered.empty:
-                                df_raw_filtered = df_raw_filtered.sort_values(by='Log_Time', ascending=False)
-                                hari_indo = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
-                                df_raw_filtered['Tanggal'] = df_raw_filtered['Log_Time'].apply(
-                                    lambda x: f"{hari_indo[x.weekday()]}, {x.strftime('%Y-%m-%d')}"
-                                )
-                                df_raw_filtered['Jam'] = df_raw_filtered['Log_Time'].dt.strftime('%H:%M:%S')
-                                df_raw_filtered['Nama_Karyawan'] = selected_name
-                                cols_raw = ['Kode_Area', 'PIN', 'Nama_Karyawan', 'Tanggal', 'Jam', 'Status']
-                                st.dataframe(df_raw_filtered[cols_raw], use_container_width=True, hide_index=True)
-                            else:
-                                st.info("Tidak ada log tap mesin mentah untuk karyawan ini pada rentang tanggal tersebut.")
-                        else:
-                            st.info("Karyawan ini tidak memiliki data log mentah.")
-
+        if event.selection.rows:
+            show_employee_detail(selected_id, summary, df, start_date, end_date)
+            
     with tab_laporan:
         # --- LAPORAN KORBAN SISTEM LAMA (GLOBAL, LEBAR PENUH) ---
         st.header("🚨 Laporan Global: Korban Anomali Sistem Lama")
