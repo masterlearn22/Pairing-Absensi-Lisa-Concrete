@@ -329,26 +329,52 @@ def main():
             
             # --- EKSPOR HRD ---
             import export_hrd
+            import io
+            
+            st.write("**Pilihan Ekspor Format HRD (Legacy)**")
+            export_format = st.radio("Pilih Format:", ["Excel (.xlsx)", "CSV (.csv)", "SQL (.sql)"], horizontal=True)
             
             @st.cache_data(show_spinner=False)
-            def get_export_csv(df_to_export, s_date, e_date):
+            def get_export_data(df_to_export, s_date, e_date, fmt):
                 df_exp = export_hrd.generate_export_hrd(df_to_export, s_date, e_date)
                 cols = ['Nip', 'Nama', 'Hari', 'TTgs', 'JTgs', 'JSlS', 'TDtg', 'JDtg', 'JPlg', 'JJK', 'Tlmbt', 'PlgAwal', 'SPKL', 'JmlLmbr', 'UnitLmbr', 'PJL', 'DtgAw', 'PlgAk', 'Catatan', 'Stsdate']
-                return df_exp[cols].to_csv(index=False, sep=';').encode('utf-8')
-            
-            csv_data = get_export_csv(df, start_date, end_date)
+                df_final = df_exp[cols]
+                
+                if fmt == "CSV (.csv)":
+                    return df_final.to_csv(index=False, sep=';').encode('utf-8'), "text/csv", f"Export_HRD_{s_date}_sd_{e_date}.csv"
+                elif fmt == "Excel (.xlsx)":
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df_final.to_excel(writer, index=False, sheet_name='Data_Absensi')
+                    return output.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", f"Export_HRD_{s_date}_sd_{e_date}.xlsx"
+                else: # SQL
+                    table_name = "t_absensi_solutions_harian"
+                    sql_statements = []
+                    for _, row in df_final.iterrows():
+                        vals = []
+                        for val in row:
+                            if pd.isna(val) or val == "":
+                                vals.append("NULL")
+                            else:
+                                clean_val = str(val).replace("'", "''")
+                                vals.append(f"'{clean_val}'")
+                        sql_statements.append(f"INSERT INTO {table_name} ({', '.join(cols)}) VALUES ({', '.join(vals)});")
+                    sql_text = "\\n".join(sql_statements)
+                    return sql_text.encode('utf-8'), "text/plain", f"Export_HRD_{s_date}_sd_{e_date}.sql"
+
+            file_data, mime_type, file_name = get_export_data(df, start_date, end_date, export_format)
             
             c_exp, c_info = st.columns([1, 2])
             with c_exp:
                 st.download_button(
-                    label="📥 Ekspor ke Format HRD",
-                    data=csv_data,
-                    file_name=f"Export_HRD_{start_date}_to_{end_date}.csv",
-                    mime="text/csv",
+                    label=f"📥 Unduh {export_format}",
+                    data=file_data,
+                    file_name=file_name,
+                    mime=mime_type,
                     type="primary"
                 )
             with c_info:
-                st.caption("Menghasilkan file CSV siap impor ke software HRD/Payroll lama (termasuk deteksi lembur dan *missing days*).")
+                st.caption("Pilih format yang paling sesuai untuk diimpor ke software HRD/Payroll lama (termasuk deteksi lembur dan *missing days*).")
 
         else:
             # Jika user baru mengklik 1 tanggal, kita tunggu
