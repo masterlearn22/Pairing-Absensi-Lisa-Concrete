@@ -350,28 +350,51 @@ def main():
             # --- FILTER TAMBAHAN ---
             with st.container(border=True):
                 st.markdown("#### 🎛️ Filter Data Tambahan")
-                col_f1, col_f2, col_f3 = st.columns(3)
+                
+                # Fungsi Helper Status Karyawan
+                def get_status_karyawan(nip):
+                    nip = str(nip)
+                    if nip.startswith('209'): return "Outsourcing Baru"
+                    if nip.startswith('206') or nip.startswith('216'): return "PHL (Harian Lepas)"
+                    if nip.startswith('201') or nip.startswith('202') or nip.startswith('203'): return "Tetap"
+                    if nip.startswith('100'): return "Staf"
+                    return "Tidak Teridentifikasi"
+
+                # Apply status to dataframe for filtering
+                if 'NIP_Asli' in df.columns:
+                    df['Status_Karyawan'] = df['NIP_Asli'].apply(get_status_karyawan)
+                elif 'PIN' in df.columns:
+                    df['Status_Karyawan'] = df['PIN'].apply(get_status_karyawan)
+
+                col_f1, col_f2, col_f3, col_f4 = st.columns(4)
                 
                 with col_f1:
                     if 'Kode_Area' in df.columns:
                         area_options = ["Semua Lokasi"] + sorted([str(x) for x in df['Kode_Area'].unique() if str(x) != 'nan' and str(x) != '-'])
-                        selected_area = st.selectbox("Lokasi Pabrik/Kantor:", area_options)
+                        selected_area = st.selectbox("Lokasi Pabrik:", area_options)
                         if selected_area != "Semua Lokasi":
                             df = df[df['Kode_Area'].astype(str) == selected_area]
                             
                 with col_f2:
                     if 'Kode_Divisi' in df.columns:
                         divisi_options = ["Semua Divisi"] + sorted([str(x) for x in df['Kode_Divisi'].unique() if str(x) != 'nan' and str(x) != '-'])
-                        selected_div = st.selectbox("Divisi/Departemen:", divisi_options)
+                        selected_div = st.selectbox("Departemen:", divisi_options)
                         if selected_div != "Semua Divisi":
                             df = df[df['Kode_Divisi'].astype(str) == selected_div]
 
                 with col_f3:
                     if 'Shift' in df.columns:
                         shift_options = ["Semua Shift"] + sorted([str(x) for x in df['Shift'].unique() if str(x) != 'nan' and str(x) != '-'])
-                        selected_shift = st.selectbox("Tipe Shift Kerja:", shift_options)
+                        selected_shift = st.selectbox("Tipe Shift:", shift_options)
                         if selected_shift != "Semua Shift":
                             df = df[df['Shift'].astype(str) == selected_shift]
+
+                with col_f4:
+                    if 'Status_Karyawan' in df.columns:
+                        status_options = ["Semua Status"] + sorted([str(x) for x in df['Status_Karyawan'].unique() if str(x) != 'nan'])
+                        selected_status = st.selectbox("Status Karyawan:", status_options)
+                        if selected_status != "Semua Status":
+                            df = df[df['Status_Karyawan'].astype(str) == selected_status]
             
             # --- EKSPOR HRD ---
             with st.container(border=True):
