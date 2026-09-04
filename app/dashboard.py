@@ -1,10 +1,85 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import os
 from datetime import datetime
 import pairing_engine
 
-def apply_modern_ui():
+
+def get_lottie_html():
+    import json
+    import os
+    try:
+        with open('assets/check.json', 'r', encoding='utf-8') as f:
+            lottie_json = f.read()
+        lottie_json_str = json.dumps(json.loads(lottie_json))
+    except Exception:
+        lottie_json_str = "{}"
+
+    return f"""
+    <script>
+        const parentDoc = window.parent.document;
+        if (!parentDoc.getElementById('lottie-script')) {{
+            const script = parentDoc.createElement('script');
+            script.id = 'lottie-script';
+            script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
+            parentDoc.head.appendChild(script);
+            
+            const loaderDiv = parentDoc.createElement('div');
+            loaderDiv.id = 'custom-lottie-loader';
+            
+            const style = parentDoc.createElement('style');
+            style.innerHTML = `
+                #custom-lottie-loader {{
+                    display: none;
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 9999999;
+                    pointer-events: none;
+                }}
+                /* Make lottie visible when running */
+                .stApp[data-test-script-state="running"] #custom-lottie-loader {{
+                    display: block !important;
+                }}
+                body[data-test-script-state="running"] #custom-lottie-loader {{
+                    display: block !important;
+                }}
+                
+                /* Override previous CSS pulse loader */
+                .stApp[data-test-script-state="running"]::before {{
+                    display: none !important;
+                    content: none !important;
+                }}
+            `;
+            parentDoc.head.appendChild(style);
+            
+            script.onload = () => {{
+                loaderDiv.innerHTML = `<lottie-player 
+                    background="transparent" 
+                    speed="1" 
+                    style="width: 250px; height: 250px;" 
+                    loop 
+                    autoplay></lottie-player>`;
+                
+                const stApp = parentDoc.querySelector('.stApp');
+                if (stApp) {{
+                    stApp.appendChild(loaderDiv);
+                }} else {{
+                    parentDoc.body.appendChild(loaderDiv);
+                }}
+                
+                const player = parentDoc.querySelector('lottie-player');
+                player.load({lottie_json_str});
+            }};
+        }}
+    </script>
+    """
+
+
+def apply_modern_ui()
+    components.html(get_lottie_html(), height=0, width=0):
     st.markdown("""
         <style>
         /* Sembunyikan footer bawaan Streamlit (sementara biarkan header agar tombol sidebar tetap ada) */
@@ -301,6 +376,7 @@ def main():
 
     st.set_page_config(layout="wide", page_title="Dashboard Absensi & Shift", initial_sidebar_state="expanded")
     apply_modern_ui()
+    components.html(get_lottie_html(), height=0, width=0)
 
     st.title("📊 Sistem Terpadu Absensi & Shift Kerja")
     st.write(
