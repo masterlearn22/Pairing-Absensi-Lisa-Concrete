@@ -28,7 +28,7 @@ def load_boss_data():
     import re
     boss_data = []
     pattern = re.compile(
-        r"\('([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*([^,]+),\s*([^,]+),\s*([^)]+)\)")
+        r"\('((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*([^,]+),\s*([^,]+),\s*([^)]+)\)")
     filepath = 'database/master/t_absensi_solutions_harian.sql'
     if not os.path.exists(filepath):
         return pd.DataFrame()
@@ -39,11 +39,11 @@ def load_boss_data():
                 if line.strip().startswith("('"):
                     for match in pattern.findall(line):
                         boss_data.append({
-                            'Kode_Area': match[0],
-                            'PIN': match[1],
-                            'Tanggal': match[2],
-                            'Jam_Masuk_Atasan': match[4],
-                            'Jam_Keluar_Atasan': match[5],
+                            'Kode_Area': match[0].replace("\\'", "'"),
+                            'PIN': match[1].replace("\\'", "'"),
+                            'Tanggal': match[2].replace("\\'", "'"),
+                            'Jam_Masuk_Atasan': match[4].replace("\\'", "'"),
+                            'Jam_Keluar_Atasan': match[5].replace("\\'", "'"),
                             'Total_Jam_Kerja': float(match[6])
                         })
     except Exception:
@@ -67,7 +67,7 @@ def load_raw_data():
     import re
     raw_data = []
     pattern = re.compile(
-        r"\('([^']*)',\s*'([^']*)',\s*'([^']*)',\s*(\d+),\s*'([^']*)'\)")
+        r"\('((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*(\d+),\s*'((?:[^'\\]|\\.)*)'\)")
     filepath = 'database/master/t_absensi_solutions_fp.sql'
     if not os.path.exists(filepath):
         return pd.DataFrame()
@@ -78,11 +78,11 @@ def load_raw_data():
                 if line.strip().startswith("('"):
                     for match in pattern.findall(line):
                         raw_data.append({
-                            'Kode_Area': match[0],
-                            'PIN': match[1],
-                            'Waktu_Scan': match[2],
+                            'Kode_Area': match[0].replace("\\'", "'"),
+                            'PIN': match[1].replace("\\'", "'"),
+                            'Waktu_Scan': match[2].replace("\\'", "'"),
                             'Status': "Keluar (OUT)" if match[3] == "1" else "Masuk (IN)",
-                            'Log_Time': pd.to_datetime(match[2])
+                            'Log_Time': pd.to_datetime(match[2].replace("\\'", "'"))
                         })
     except Exception:
         pass

@@ -165,12 +165,12 @@ class ShiftClassifier:
 
 def parse_sql_text(text_content):
     """Mengekstrak data scan dari string SQL dump."""
-    pattern = re.compile(r"\('([^']*)',\s*'([^']*)',\s*'([^']*)',\s*(\d+),\s*'([^']*)'\)")
+    pattern = re.compile(r"\('((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)',\s*(\d+),\s*'((?:[^'\\]|\\.)*)'\)")
     data = []
     for match in pattern.findall(text_content):
-        kode_area = match[0].strip()
-        pin = match[1].strip()
-        waktu_scan = match[2].strip()
+        kode_area = match[0].replace("\\'", "'").strip()
+        pin = match[1].replace("\\'", "'").strip()
+        waktu_scan = match[2].replace("\\'", "'").strip()
         status = int(match[3]) if match[3].isdigit() else 0
         if pin and waktu_scan:
             data.append({
@@ -401,17 +401,20 @@ def load_employee_metadata():
     akun_to_nip = {}
 
     if os.path.exists(AKUN_FILE):
-        pattern = re.compile(r"\((?:'[^']*'|NULL),\s*'([^']*)',\s*(?:'([^']*)'|NULL),\s*(?:'([^']*)'|NULL)")
+        pattern = re.compile(r"\((?:'(?:[^'\\]|\\.)*'|NULL),\s*'((?:[^'\\]|\\.)*)',\s*(?:'((?:[^'\\]|\\.)*)'|NULL),\s*(?:'((?:[^'\\]|\\.)*)'|NULL)")
         try:
             with open(AKUN_FILE, 'r', encoding='utf-8', errors='ignore') as f:
                 for line in f:
                     if line.strip().startswith("('"):
                         for match in pattern.findall(line):
                             akun, nip, nama = match
-                            if nama and nama.strip():
-                                akun_to_nama[akun.strip()] = nama.strip()
-                            if nip and nip.strip():
-                                akun_to_nip[akun.strip()] = nip.strip()
+                            akun = akun.replace("\\'", "'").strip()
+                            nip = nip.replace("\\'", "'").strip()
+                            nama = nama.replace("\\'", "'").strip()
+                            if nama:
+                                akun_to_nama[akun] = nama
+                            if nip:
+                                akun_to_nip[akun] = nip
         except Exception as e:
             print(f"Gagal membaca metadata akun: {e}")
 
