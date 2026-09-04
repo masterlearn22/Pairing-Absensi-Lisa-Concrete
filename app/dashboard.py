@@ -132,12 +132,10 @@ def hitung_lembur_row(row):
 
         selisih = durasi_kerja_menit - batas_kerja_menit
 
-        # Jika total jam kerja lebih besar dari jam kerja standar, maka dihitung lembur
-        if selisih > 0:
+        # Lembur hanya dihitung jika selisih waktu kerja ekstra minimal 2 jam (120 menit)
+        if selisih >= 120:
             jam = selisih // 60
             menit = selisih % 60
-            if jam == 0:
-                return f"0 jam {menit} mnt"
             return f"{jam} jam {menit} mnt"
 
         return "-"
