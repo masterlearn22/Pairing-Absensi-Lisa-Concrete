@@ -4,6 +4,65 @@ import os
 from datetime import datetime
 import pairing_engine
 
+def apply_modern_ui():
+    st.markdown("""
+        <style>
+        /* Sembunyikan header dan footer bawaan Streamlit */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* Jarak atas agar tidak terlalu kosong karena header disembunyikan */
+        .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+        
+        /* Bikin Metric menjadi seperti Card Modern */
+        div[data-testid="stMetric"] {
+            background-color: var(--secondary-background-color);
+            border: 1px solid rgba(128,128,128,0.2);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        div[data-testid="stMetric"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Expander dan border agar membulat */
+        div[data-testid="stExpander"] {
+            border-radius: 10px;
+            border: 1px solid rgba(128,128,128,0.2);
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 12px;
+        }
+        
+        /* Bikin tombol lebih membulat dan interaktif */
+        div[data-testid="stButton"] button {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        div[data-testid="stButton"] button:hover {
+            transform: scale(1.02);
+        }
+        
+        /* Styling input fields */
+        div[data-baseweb="input"] > div {
+            border-radius: 8px;
+        }
+        div[data-baseweb="select"] > div {
+            border-radius: 8px;
+        }
+        
+        /* Custom styling tabel dataframe (hilangkan border table luar bila memungkinkan) */
+        div[data-testid="stDataFrame"] > div {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 def load_data():
     file_path = "database/active/Hasil_Pairing_Absensi_Dengan_Shift_Revisi.csv"
@@ -145,6 +204,7 @@ def hitung_lembur_row(row):
 
 def main():
     st.set_page_config(layout="wide", page_title="Dashboard Absensi & Shift")
+    apply_modern_ui()
 
     st.title("📊 Sistem Terpadu Absensi & Shift Kerja")
     st.write(
