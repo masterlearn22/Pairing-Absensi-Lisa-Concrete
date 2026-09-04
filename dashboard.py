@@ -269,7 +269,7 @@ def main():
 
         if df.empty:
             st.warning(
-                "Data absensi belum tersedia. Silakan jalankan script `pairing_data_revisi.py` terlebih dahulu.")
+                "Data absensi belum tersedia. Silakan upload file log fingerprint di tab 'Upload & Pairing Log Finger' untuk memulai.")
             st.stop()
 
         # Konversi string tanggal ke datetime.date agar bisa dibandingkan dan dipakai

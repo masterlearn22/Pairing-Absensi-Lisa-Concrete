@@ -1,9 +1,0 @@
-  `kd_divisi` char(20) NOT NULL,
-
-  `kd_divisi_bag` char(20) NOT NULL,
-
-  `kd_divisi_sub_bag` char(20) NOT NULL,
-
-  KEY `nip` (`nip`,`kd_gol_kary`,`kd_sts_kary`,`kd_lok_krj`,`kd_jabatan`,`kd_divisi`,`kd_divisi_bag`,`kd_divisi_sub_bag`)
-
-INSERT INTO `tdt_kerja` (`kd_gol_kary`, `kd_sts_kary`, `kd_lok_krj`, `kd_jabatan`, `kd_divisi`, `kd_divisi_bag`, `kd_divisi_sub_bag`, `nip`, `tgl_msk`, `tgl_klr`) VALUES
