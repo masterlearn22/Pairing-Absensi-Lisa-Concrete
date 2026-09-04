@@ -473,8 +473,8 @@ def main():
 
         st.header("Ringkasan Absensi per Karyawan")
 
-        # Calculate summary
-        summary = df.groupby(['PIN', 'Nama_Karyawan']).agg(
+        # Calculate summary by PIN and Area to prevent merging different people with the same PIN in different factories
+        summary = df.groupby(['PIN', 'Kode_Area', 'Nama_Karyawan']).agg(
             Total_Hari_Hadir=('Tanggal', 'nunique'),
             Total_Scan=('Total_Scan', 'sum'),
             Total_Hari_Lembur=('Is_Lembur', 'sum'),
@@ -496,11 +496,12 @@ def main():
         summary['Status'] = summary['NIP'].apply(get_status_karyawan)
         
         # Susun ulang kolom
-        summary = summary[['PIN', 'NIP', 'Status', 'Nama_Karyawan', 'Total_Hari_Hadir', 'Total_Scan', 'Total_Hari_Lembur', 'Total_Error_Absen']]
+        summary = summary[['PIN', 'Kode_Area', 'NIP', 'Status', 'Nama_Karyawan', 'Total_Hari_Hadir', 'Total_Scan', 'Total_Hari_Lembur', 'Total_Error_Absen']]
 
-        summary = summary.sort_values(by='Total_Hari_Hadir', ascending=False)
+        summary = summary.sort_values(by=['Kode_Area', 'Total_Hari_Hadir'], ascending=[True, False])
         
-        total_karyawan = summary['PIN'].nunique()
+        # Total Karyawan is the number of unique (PIN, Area) pairs
+        total_karyawan = len(summary)
         total_lembur = summary['Total_Hari_Lembur'].sum()
         total_error = summary['Total_Error_Absen'].sum()
         
@@ -512,13 +513,14 @@ def main():
 
         st.write("") # spacing
 
-        # Buat dictionary untuk selectbox (Pin -> Text)
-        pin_to_name = {row['PIN']: f"{row['NIP']} - {str(row['Nama_Karyawan'])} ({row['Status']})" for _, row in summary.iterrows()}
+        # Buat identitas unik untuk dropdown: PIN + Area
+        summary['ID_Unik'] = summary['PIN'].astype(str) + "___" + summary['Kode_Area'].astype(str)
+        pin_to_name = {row['ID_Unik']: f"{row['Kode_Area']} - {row['NIP']} - {str(row['Nama_Karyawan'])} ({row['Status']})" for _, row in summary.iterrows()}
 
         # PINDAHKAN SELECTBOX KE ATAS TABEL
-        selected_pin = st.selectbox(
+        selected_id = st.selectbox(
             "🔍 Cari dan Pilih Spesifik Nama Karyawan:",
-            options=summary['PIN'].tolist(),
+            options=summary['ID_Unik'].tolist(),
             index=0 if total_karyawan > 0 else None,
             format_func=lambda x: pin_to_name.get(x, x)
         )
@@ -526,54 +528,56 @@ def main():
         st.write("**Tabel Ringkasan Karyawan (💡 Atau klik baris mana saja di bawah ini untuk melihat profil/detail)**")
         
         event = st.dataframe(
-            summary,
+            summary.drop(columns=['ID_Unik']),
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",
             column_config={
                 "PIN": st.column_config.TextColumn("PIN (Mesin)", width="small"),
+                "Kode_Area": st.column_config.TextColumn("Area", width="small"),
                 "NIP": st.column_config.TextColumn("NIP", width="small"),
                 "Status": st.column_config.TextColumn("Status Karyawan", width="medium"),
                 "Nama_Karyawan": st.column_config.TextColumn("Nama Lengkap", width="medium"),
                 "Total_Hari_Hadir": st.column_config.ProgressColumn(
                     "Total Kehadiran",
-                    help="Jumlah hari hadir dalam rentang tanggal ini",
-                    format="%d Hari",
+                    help="Total hari kerja (tidak dihitung ganda jika lintas hari)",
                     min_value=0,
                     max_value=31,
+                    format="%f Hari"
                 ),
-                "Total_Scan": st.column_config.NumberColumn(
-                    "Total Tap Finger",
-                    help="Total keseluruhan tap jari di mesin",
-                ),
-                "Total_Hari_Lembur": st.column_config.NumberColumn(
+                "Total_Scan": st.column_config.NumberColumn("Total Tap Finger"),
+                "Total_Hari_Lembur": st.column_config.ProgressColumn(
                     "Total Lembur",
-                    help="Jumlah hari dimana karyawan ini lembur",
-                    format="%d Hari"
+                    help="Total hari dengan lembur",
+                    min_value=0,
+                    max_value=31,
+                    format="%f Hari"
                 ),
                 "Total_Error_Absen": st.column_config.NumberColumn(
                     "Total Error / Lupa Tap",
-                    help="Jumlah hari dimana ada absen masuk tapi tidak ada pulang, atau sebaliknya",
-                    format="⚠️ %d"
+                    help="Berapa kali karyawan lupa tap masuk/keluar"
                 )
             }
         )
-
-        # Cek apakah ada baris yang dipilih dari tabel
-        selected_rows = event.selection.rows
-        if selected_rows:
-            selected_pin = summary.iloc[selected_rows[0]]['PIN']
+        
+        # Override dropdown if user clicks a row in the dataframe
+        if event.selection.rows:
+            selected_row_index = event.selection.rows[0]
+            selected_id = summary.iloc[selected_row_index]['ID_Unik']
 
         st.divider()
 
-        if selected_pin:
+        if selected_id:
             with st.container(border=True):
-                selected_name = summary.loc[summary['PIN'] == selected_pin, 'Nama_Karyawan'].values[0]
-                st.subheader(f"Detail Absensi (Raw Pairing): {selected_name}")
+                # Ekstrak pin dan area dari ID Unik
+                pin_part, area_part = selected_id.split("___")
+                selected_name = summary.loc[summary['ID_Unik'] == selected_id, 'Nama_Karyawan'].values[0]
+                
+                st.subheader(f"Detail Absensi (Raw Pairing): {selected_name} ({area_part})")
     
-                # Filter data khusus karyawan ini
-                df_detail = df[df['PIN'] == selected_pin].copy()
+                # Filter data khusus karyawan ini (PIN & AREA yang sama)
+                df_detail = df[(df['PIN'].astype(str) == pin_part) & (df['Kode_Area'].astype(str) == area_part)].copy()
     
                 # Buat format HRD untuk ditampilkan di layar
                 import export_hrd
