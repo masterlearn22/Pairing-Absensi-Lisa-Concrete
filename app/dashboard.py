@@ -361,7 +361,6 @@ def main():
             st.write("**Pilihan Ekspor Format HRD (Legacy)**")
             export_format = st.radio("Pilih Format:", ["Excel (.xlsx)", "CSV (.csv)", "SQL (.sql)"], horizontal=True)
             
-            @st.cache_data(show_spinner=False)
             def get_export_data(df_to_export, s_date, e_date, fmt):
                 df_exp = export_hrd.generate_export_hrd(df_to_export, s_date, e_date)
                 cols = ['Nip', 'Nama', 'Hari', 'TTgs', 'JTgs', 'JSlS', 'TDtg', 'JDtg', 'JPlg', 'JJK', 'Tlmbt', 'PlgAwal', 'SPKL', 'JmlLmbr', 'UnitLmbr', 'PJL', 'DtgAw', 'PlgAk', 'Catatan', 'Stsdate']
