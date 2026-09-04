@@ -603,7 +603,7 @@ def main():
                     if df_boss.empty:
                         st.warning("File t_absensi_solutions_harian.sql tidak ditemukan atau gagal dibaca.")
                     else:
-                        df_boss_filtered = df_boss[(df_boss['PIN'].astype(str) == pin_part) & (df_boss['area'].astype(str) == area_part)]
+                        df_boss_filtered = df_boss[(df_boss['PIN'].astype(str) == pin_part) & (df_boss['Kode_Area'].astype(str) == area_part)]
                         mask_boss = (df_boss_filtered['Tanggal'] >= start_date.strftime('%Y-%m-%d')) & (df_boss_filtered['Tanggal'] <= end_date.strftime('%Y-%m-%d'))
                         df_boss_filtered = df_boss_filtered.loc[mask_boss]
     
