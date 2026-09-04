@@ -400,7 +400,7 @@ def main():
                 import export_hrd
                 import io
                 
-                export_format = st.radio("Pilih Format:", ["SQL (.sql)", "Excel (.xlsx)", "CSV (.csv)"], horizontal=True, label_visibility="collapsed", key="export_fmt_radio")
+                export_format = st.select_slider("Pilih Format:", options=["SQL (.sql)", "Excel (.xlsx)", "CSV (.csv)"], label_visibility="collapsed", key="export_fmt_radio")
                 
                 @st.cache_data(show_spinner=False)
                 def get_base_export_df(df_to_export, s_date, e_date):
