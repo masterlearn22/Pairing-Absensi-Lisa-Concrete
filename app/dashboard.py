@@ -395,6 +395,13 @@ def main():
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_final.to_excel(writer, index=False, sheet_name='Data_Absensi')
+                            worksheet = writer.sheets['Data_Absensi']
+                            for i, col in enumerate(df_final.columns):
+                                max_len = len(str(col))
+                                if not df_final.empty:
+                                    max_item = df_final[col].astype(str).map(len).max()
+                                    max_len = max(max_len, max_item)
+                                worksheet.set_column(i, i, max_len + 2)
                         return output.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", f"Export_Pairing_{s_date}_sd_{e_date}.xlsx"
                     else: # SQL
                         table_name = "t_absensi_solutions_harian"
