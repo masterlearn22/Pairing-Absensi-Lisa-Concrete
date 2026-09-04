@@ -379,8 +379,9 @@ def main():
                 import export_hrd
                 import io
                 
-                export_format = st.radio("Pilih Format:", ["SQL (.sql)", "Excel (.xlsx)", "CSV (.csv)"], horizontal=True, label_visibility="collapsed")
+                export_format = st.radio("Pilih Format:", ["SQL (.sql)", "Excel (.xlsx)", "CSV (.csv)"], horizontal=True, label_visibility="collapsed", key="export_fmt_radio")
                 
+                @st.cache_data
                 def get_export_data(df_to_export, s_date, e_date, fmt):
                     df_exp = export_hrd.generate_export_hrd(df_to_export, s_date, e_date)
                     cols = ['area', 'pin', 'tgl_absensi', 'tanggal', 'jam_masuk', 'jam_pulang', 'durasi_jam', 'total_scan', 'confidence']
@@ -414,7 +415,8 @@ def main():
                         sql_text = sql_statements[0] + "\n" + ",\n".join(val_lines) + ";"
                         return sql_text.encode('utf-8'), "text/plain", f"Export_Pairing_{s_date}_sd_{e_date}.sql"
 
-                file_data, mime_type, file_name = get_export_data(df, start_date, end_date, export_format)
+                with st.spinner("Mempersiapkan data unduhan..."):
+                    file_data, mime_type, file_name = get_export_data(df, start_date, end_date, export_format)
                 
                 c_exp, c_info = st.columns([1, 2])
                 with c_exp:
@@ -424,7 +426,8 @@ def main():
                         file_name=file_name,
                         mime=mime_type,
                         type="primary",
-                        use_container_width=True
+                        use_container_width=True,
+                        key=f"dl_btn_{export_format}"
                     )
                 with c_info:
                     st.caption("Pilih format yang paling sesuai untuk diimpor ke software HRD/Payroll lama (Hanya mengekspor Pairing Mentah: PIN, Tgl, In, Out, Durasi).")
