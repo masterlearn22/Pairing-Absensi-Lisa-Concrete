@@ -533,9 +533,9 @@ def run_pairing_process(df_raw, classifier=None):
         shifts.append(s_name)
     df_rekap['Shift'] = shifts
 
-    # 4. Format Jam ke String
-    df_rekap['Jam_Masuk'] = df_rekap['Jam_Masuk_Obj'].dt.strftime('%H:%M:%S')
-    df_rekap['Jam_Keluar'] = df_rekap['Jam_Keluar_Obj'].dt.strftime('%H:%M:%S').fillna("-")
+    # 4. Format Jam ke String Lengkap (YYYY-MM-DD HH:MM:SS)
+    df_rekap['Waktu_Masuk'] = df_rekap['Jam_Masuk_Obj'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df_rekap['Waktu_Keluar'] = df_rekap['Jam_Keluar_Obj'].dt.strftime('%Y-%m-%d %H:%M:%S').fillna("-")
 
     # 5. Mapping Metadata Karyawan
     akun_to_nama, akun_to_nip, df_kerja_unique = load_employee_metadata()
@@ -563,7 +563,7 @@ def run_pairing_process(df_raw, classifier=None):
 
     cols = [
         'PIN', 'Nama_Karyawan', 'Lokasi_Kerja_Asli', 'Kode_Jabatan', 'Kode_Divisi',
-        'Tanggal', 'Kode_Area', 'Shift', 'Jam_Masuk', 'Jam_Keluar', 'Total_Scan', 'Keterangan'
+        'Tanggal', 'Kode_Area', 'Shift', 'Waktu_Masuk', 'Waktu_Keluar', 'Total_Scan', 'Keterangan'
     ]
     return df_rekap[cols]
 
@@ -599,18 +599,20 @@ def smart_merge_paired_data(existing_paired_path=PAIRED_FILE, new_paired_df=None
 
     exist_map = {}
     for idx, row in df_exist.iterrows():
-        key = (norm_p(row['PIN']), str(row['Tanggal']), str(row['Jam_Masuk']))
+        # Handle migration from Jam_Masuk to Waktu_Masuk
+        waktu_masuk_val = str(row['Waktu_Masuk']) if 'Waktu_Masuk' in row else str(row.get('Jam_Masuk', ''))
+        key = (norm_p(row['PIN']), str(row['Tanggal']), waktu_masuk_val)
         exist_map[key] = idx
 
     new_rows = []
     updated_count = 0
 
     for _, row in new_df.iterrows():
-        key = (norm_p(row['PIN']), str(row['Tanggal']), str(row['Jam_Masuk']))
+        key = (norm_p(row['PIN']), str(row['Tanggal']), str(row['Waktu_Masuk']))
         if key in exist_map:
             exist_idx = exist_map[key]
             if df_exist.at[exist_idx, 'Total_Scan'] < row['Total_Scan']:
-                for col in ['Jam_Keluar', 'Total_Scan', 'Keterangan', 'Shift', 'Kode_Area']:
+                for col in ['Waktu_Keluar', 'Total_Scan', 'Keterangan', 'Shift', 'Kode_Area']:
                     df_exist.at[exist_idx, col] = row[col]
                 updated_count += 1
         else:
@@ -618,7 +620,7 @@ def smart_merge_paired_data(existing_paired_path=PAIRED_FILE, new_paired_df=None
             if same_day_keys and row['Total_Scan'] == 2 and any(df_exist.at[exist_map[k], 'Total_Scan'] == 1 for k in same_day_keys):
                 target_k = [k for k in same_day_keys if df_exist.at[exist_map[k], 'Total_Scan'] == 1][0]
                 exist_idx = exist_map[target_k]
-                for col in ['Jam_Masuk', 'Jam_Keluar', 'Total_Scan', 'Keterangan', 'Shift', 'Kode_Area']:
+                for col in ['Waktu_Masuk', 'Waktu_Keluar', 'Total_Scan', 'Keterangan', 'Shift', 'Kode_Area']:
                     df_exist.at[exist_idx, col] = row[col]
                 updated_count += 1
             else:

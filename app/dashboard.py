@@ -42,8 +42,8 @@ def load_boss_data():
                             'Kode_Area': match[0].replace("\\'", "'"),
                             'PIN': match[1].replace("\\'", "'"),
                             'Tanggal': match[2].replace("\\'", "'"),
-                            'Jam_Masuk_Atasan': match[4].replace("\\'", "'"),
-                            'Jam_Keluar_Atasan': match[5].replace("\\'", "'"),
+                            'Waktu_Masuk_Atasan': match[4].replace("\\'", "'"),
+                            'Waktu_Keluar_Atasan': match[5].replace("\\'", "'"),
                             'Total_Jam_Kerja': float(match[6])
                         })
     except Exception:
@@ -94,15 +94,19 @@ def load_raw_data():
 
 def hitung_lembur_row(row):
     try:
-        if pd.isna(row['Jam_Keluar']) or row['Jam_Keluar'] == '-' or pd.isna(row['Jam_Masuk']) or row['Jam_Masuk'] == '-':
+        if pd.isna(row['Waktu_Keluar']) or row['Waktu_Keluar'] == '-' or pd.isna(row['Waktu_Masuk']) or row['Waktu_Masuk'] == '-':
             return "-"
 
-        jam_keluar_str = str(row['Jam_Keluar'])
-        jam_masuk_str = str(row['Jam_Masuk'])
+        jam_keluar_str = str(row['Waktu_Keluar'])
+        jam_masuk_str = str(row['Waktu_Masuk'])
+
+        # Ekstrak string format 'YYYY-MM-DD HH:MM:SS' menjadi komponen time
+        time_out_str = jam_keluar_str.split(' ')[1] if ' ' in jam_keluar_str else jam_keluar_str
+        time_in_str = jam_masuk_str.split(' ')[1] if ' ' in jam_masuk_str else jam_masuk_str
 
         # Ekstrak jam dan menit
-        h_out, m_out, _ = map(int, jam_keluar_str.split(':'))
-        h_in, m_in, _ = map(int, jam_masuk_str.split(':'))
+        h_out, m_out, _ = map(int, time_out_str.split(':'))
+        h_in, m_in, _ = map(int, time_in_str.split(':'))
 
         total_menit_in = h_in * 60 + m_in
         total_menit_out = h_out * 60 + m_out
@@ -113,9 +117,12 @@ def hitung_lembur_row(row):
 
         durasi_kerja_menit = total_menit_out - total_menit_in
 
-        shift = str(row['Shift'])
-        tanggal_date = row['Tanggal_Date']
-        is_saturday = (tanggal_date.weekday() == 5)
+        shift = str(row.get('Shift', ''))
+        tanggal_date = row.get('Tanggal_Date')
+        
+        is_saturday = False
+        if tanggal_date:
+            is_saturday = (tanggal_date.weekday() == 5)
 
         # Jam kerja standar adalah 8 jam (480 menit)
         batas_kerja_menit = 8 * 60
@@ -281,8 +288,8 @@ def main():
         df['Jam Lembur'] = df.apply(hitung_lembur_row, axis=1)
 
         def is_error(r):
-            jm = r.get('Jam_Masuk', '-')
-            jk = r.get('Jam_Keluar', '-')
+            jm = r.get('Waktu_Masuk', '-')
+            jk = r.get('Waktu_Keluar', '-')
             jm_empty = pd.isna(jm) or jm == '-'
             jk_empty = pd.isna(jk) or jk == '-'
             # If one is present and the other is empty, it's a forgotten tap!
@@ -368,38 +375,41 @@ def main():
             
             # --- EKSPOR HRD ---
             with st.container(border=True):
-                st.markdown("#### 📥 Pilihan Ekspor Format HRD (Legacy)")
+                st.markdown("#### 📥 Ekspor Data Pairing (Untuk Sistem Atasan)")
                 import export_hrd
                 import io
                 
-                export_format = st.radio("Pilih Format:", ["Excel (.xlsx)", "CSV (.csv)", "SQL (.sql)"], horizontal=True, label_visibility="collapsed")
+                export_format = st.radio("Pilih Format:", ["SQL (.sql)", "Excel (.xlsx)", "CSV (.csv)"], horizontal=True, label_visibility="collapsed")
                 
                 def get_export_data(df_to_export, s_date, e_date, fmt):
                     df_exp = export_hrd.generate_export_hrd(df_to_export, s_date, e_date)
-                    cols = ['Nip', 'Nama', 'Hari', 'TTgs', 'JTgs', 'JSlS', 'TDtg', 'JDtg', 'JPlg', 'JJK', 'Tlmbt', 'PlgAwal', 'SPKL', 'JmlLmbr', 'UnitLmbr', 'PJL', 'DtgAw', 'PlgAk', 'Catatan', 'Stsdate']
+                    cols = ['area', 'pin', 'tgl_absensi', 'tanggal', 'jam_masuk', 'jam_pulang', 'durasi_jam', 'total_scan', 'confidence']
                     df_final = df_exp[cols]
                     
                     if fmt == "CSV (.csv)":
-                        return df_final.to_csv(index=False, sep=';').encode('utf-8'), "text/csv", f"Export_HRD_{s_date}_sd_{e_date}.csv"
+                        return df_final.to_csv(index=False, sep=';').encode('utf-8'), "text/csv", f"Export_Pairing_{s_date}_sd_{e_date}.csv"
                     elif fmt == "Excel (.xlsx)":
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_final.to_excel(writer, index=False, sheet_name='Data_Absensi')
-                        return output.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", f"Export_HRD_{s_date}_sd_{e_date}.xlsx"
+                        return output.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", f"Export_Pairing_{s_date}_sd_{e_date}.xlsx"
                     else: # SQL
                         table_name = "t_absensi_solutions_harian"
-                        sql_statements = []
+                        sql_statements = [f"INSERT INTO `{table_name}` (`area`, `pin`, `tgl_absensi`, `tanggal`, `jam_masuk`, `jam_pulang`, `durasi_jam`, `total_scan`, `confidence`) VALUES"]
+                        val_lines = []
                         for _, row in df_final.iterrows():
                             vals = []
-                            for val in row:
-                                if pd.isna(val) or val == "":
+                            for col_name, val in zip(cols, row):
+                                if val == "NULL" or pd.isna(val) or val == "":
                                     vals.append("NULL")
-                                else:
-                                    clean_val = str(val).replace("'", "''")
+                                elif isinstance(val, str):
+                                    clean_val = val.replace("'", "''")
                                     vals.append(f"'{clean_val}'")
-                            sql_statements.append(f"INSERT INTO {table_name} ({', '.join(cols)}) VALUES ({', '.join(vals)});")
-                        sql_text = "\\n".join(sql_statements)
-                        return sql_text.encode('utf-8'), "text/plain", f"Export_HRD_{s_date}_sd_{e_date}.sql"
+                                else:
+                                    vals.append(str(val))
+                            val_lines.append(f"({', '.join(vals)})")
+                        sql_text = sql_statements[0] + "\n" + ",\n".join(val_lines) + ";"
+                        return sql_text.encode('utf-8'), "text/plain", f"Export_Pairing_{s_date}_sd_{e_date}.sql"
 
                 file_data, mime_type, file_name = get_export_data(df, start_date, end_date, export_format)
                 
@@ -414,7 +424,7 @@ def main():
                         use_container_width=True
                     )
                 with c_info:
-                    st.caption("Pilih format yang paling sesuai untuk diimpor ke software HRD/Payroll lama (termasuk deteksi lembur otomatis).")
+                    st.caption("Pilih format yang paling sesuai untuk diimpor ke software HRD/Payroll lama (Hanya mengekspor Pairing Mentah: PIN, Tgl, In, Out, Durasi).")
 
         else:
             # Jika user baru mengklik 1 tanggal, kita tunggu
@@ -522,7 +532,7 @@ def main():
         if selected_pin:
             with st.container(border=True):
                 selected_name = summary.loc[summary['PIN'] == selected_pin, 'Nama_Karyawan'].values[0]
-                st.subheader(f"Detail Absensi (Format HRD): {selected_name}")
+                st.subheader(f"Detail Absensi (Raw Pairing): {selected_name}")
     
                 # Filter data khusus karyawan ini
                 df_detail = df[df['PIN'] == selected_pin].copy()
@@ -667,7 +677,7 @@ def main():
                                 df['Tanggal'] == k_tgl)].copy()
                             if not our_anomali.empty:
                                 st.dataframe(our_anomali[[
-                                             'Tanggal', 'Shift', 'Jam_Masuk', 'Jam_Keluar', 'Keterangan']], hide_index=True, use_container_width=True)
+                                             'Tanggal', 'Shift', 'Waktu_Masuk', 'Waktu_Keluar', 'Keterangan']], hide_index=True, use_container_width=True)
                             else:
                                 st.write("Data tidak ditemukan.")
                         except NameError:
@@ -682,7 +692,7 @@ def main():
                                 str) == k_pin) & (df_boss_all['Tanggal'] == k_tgl)].copy()
                             if not boss_anomali.empty:
                                 st.dataframe(boss_anomali[[
-                                             'Tanggal', 'Jam_Masuk_Atasan', 'Jam_Keluar_Atasan', 'Total_Jam_Kerja']], hide_index=True, use_container_width=True)
+                                             'Tanggal', 'Waktu_Masuk_Atasan', 'Waktu_Keluar_Atasan', 'Total_Jam_Kerja']], hide_index=True, use_container_width=True)
                             else:
                                 st.error(
                                     "Data di sistem atasan kosong atau hilang untuk tanggal ini!")
