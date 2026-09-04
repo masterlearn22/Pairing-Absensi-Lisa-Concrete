@@ -8,13 +8,15 @@ import pairing_engine
 
 def get_lottie_html():
     import json
+    import base64
     import os
     try:
         with open('assets/check.json', 'r', encoding='utf-8') as f:
             lottie_json = f.read()
-        lottie_json_str = json.dumps(json.loads(lottie_json))
+        b64_json = base64.b64encode(lottie_json.encode('utf-8')).decode('utf-8')
+        data_uri = f"data:application/json;base64,{b64_json}"
     except Exception:
-        lottie_json_str = "{}"
+        data_uri = ""
 
     return f"""
     <script>
@@ -57,6 +59,7 @@ def get_lottie_html():
             
             script.onload = () => {{
                 loaderDiv.innerHTML = `<lottie-player 
+                    src="{data_uri}"
                     background="transparent" 
                     speed="1" 
                     style="width: 250px; height: 250px;" 
@@ -69,9 +72,6 @@ def get_lottie_html():
                 }} else {{
                     parentDoc.body.appendChild(loaderDiv);
                 }}
-                
-                const player = parentDoc.querySelector('lottie-player');
-                player.load({lottie_json_str});
             }};
         }}
     </script>
