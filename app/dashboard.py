@@ -326,7 +326,34 @@ def main():
             # Saring data yang hanya berada dalam rentang tanggal tersebut
             df = df[(df['Tanggal_Date'] >= start_date)
                     & (df['Tanggal_Date'] <= end_date)]
+
+            # --- FILTER TAMBAHAN ---
+            st.markdown("### 🎛️ Filter Data Tambahan")
+            col_f1, col_f2, col_f3 = st.columns(3)
             
+            with col_f1:
+                if 'Kode_Area' in df.columns:
+                    area_options = ["Semua Lokasi"] + sorted([str(x) for x in df['Kode_Area'].unique() if str(x) != 'nan' and str(x) != '-'])
+                    selected_area = st.selectbox("Lokasi Pabrik/Kantor:", area_options)
+                    if selected_area != "Semua Lokasi":
+                        df = df[df['Kode_Area'].astype(str) == selected_area]
+                        
+            with col_f2:
+                if 'Kode_Divisi' in df.columns:
+                    divisi_options = ["Semua Divisi"] + sorted([str(x) for x in df['Kode_Divisi'].unique() if str(x) != 'nan' and str(x) != '-'])
+                    selected_div = st.selectbox("Divisi/Departemen:", divisi_options)
+                    if selected_div != "Semua Divisi":
+                        df = df[df['Kode_Divisi'].astype(str) == selected_div]
+
+            with col_f3:
+                if 'Shift' in df.columns:
+                    shift_options = ["Semua Shift"] + sorted([str(x) for x in df['Shift'].unique() if str(x) != 'nan' and str(x) != '-'])
+                    selected_shift = st.selectbox("Tipe Shift Kerja:", shift_options)
+                    if selected_shift != "Semua Shift":
+                        df = df[df['Shift'].astype(str) == selected_shift]
+            
+            st.divider()
+
             # --- EKSPOR HRD ---
             import export_hrd
             import io
@@ -399,13 +426,21 @@ def main():
         # Tampilkan total karyawan yang absen
         total_karyawan = summary['PIN'].nunique()
         st.info(
-            f"👥 Terdapat **{total_karyawan} karyawan** yang memiliki riwayat absen pada rentang tanggal ini.")
+            f"👥 Terdapat **{total_karyawan} karyawan** yang sesuai dengan kriteria filter di atas.")
 
         # Buat dictionary untuk selectbox (Pin -> Text)
         pin_to_name = {row['PIN']: str(row['Nama_Karyawan'])
                        for _, row in summary.iterrows()}
 
-        st.write("**Tabel Ringkasan (💡 Klik baris mana saja untuk melihat detail)**")
+        # PINDAHKAN SELECTBOX KE ATAS TABEL
+        selected_pin = st.selectbox(
+            "🔍 Cari dan Pilih Nama Karyawan:",
+            options=summary['PIN'].tolist(),
+            index=0 if total_karyawan > 0 else None,
+            format_func=lambda x: pin_to_name.get(x, x)
+        )
+
+        st.write("**Tabel Ringkasan (💡 Atau klik baris mana saja di bawah ini untuk memilih)**")
         event = st.dataframe(
             summary,
             use_container_width=True,
@@ -416,14 +451,9 @@ def main():
 
         # Cek apakah ada baris yang dipilih dari tabel
         selected_rows = event.selection.rows
-        default_idx = selected_rows[0] if selected_rows else 0
-
-        selected_pin = st.selectbox(
-            "Atau cari nama spesifik di kotak ini:",
-            options=summary['PIN'].tolist(),
-            index=default_idx,
-            format_func=lambda x: pin_to_name.get(x, x)
-        )
+        if selected_rows:
+            # Timpa pilihan selectbox dengan pilihan baris tabel
+            selected_pin = summary.iloc[selected_rows[0]]['PIN']
 
         st.divider()
 
