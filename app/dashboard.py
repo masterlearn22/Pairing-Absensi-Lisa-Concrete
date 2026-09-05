@@ -31,76 +31,99 @@ def get_lottie_html():
     <script>
         const parentDoc = window.parent.document;
         
-        // 1. Setup script
+        // Always try to execute the logic, in case this is a rerun and the old script is stuck
+        // We will remove the old container if it exists to refresh the Lottie files
+        let oldContainer = parentDoc.getElementById('custom-lottie-container');
+        if (oldContainer) {{
+            oldContainer.remove();
+        }}
+        
+        // 1. Setup script (only once)
         if (!parentDoc.getElementById('lottie-script')) {{
             const script = parentDoc.createElement('script');
             script.id = 'lottie-script';
             script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
             parentDoc.head.appendChild(script);
+        }}
+        
+        // 2. Setup Container
+        const loaderDiv = parentDoc.createElement('div');
+        loaderDiv.id = 'custom-lottie-container';
+        
+        // 3. Setup CSS (Refresh it)
+        let oldStyle = parentDoc.getElementById('custom-lottie-style');
+        if (oldStyle) oldStyle.remove();
+        
+        const style = parentDoc.createElement('style');
+        style.id = 'custom-lottie-style';
+        style.innerHTML = `
+            .my-lottie-player {{
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 9999999;
+                pointer-events: none;
+            }}
             
-            // 2. Setup Container
-            const loaderDiv = parentDoc.createElement('div');
-            loaderDiv.id = 'custom-lottie-container';
+            /* Override default css */
+            .stApp[data-test-script-state="running"]::before {{ display: none !important; content: none !important; }}
             
-            // 3. Setup CSS
-            const style = parentDoc.createElement('style');
-            style.innerHTML = `
-                .my-lottie-player {{
-                    display: none;
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    z-index: 9999999;
-                    pointer-events: none;
-                }}
-                
-                /* Override default css */
-                .stApp[data-test-script-state="running"]::before {{ display: none !important; content: none !important; }}
-                
-                /* Switch logic based on body attribute */
-                /* Default to check animation */
-                body:not([data-lottie-action="change"]) .stApp[data-test-script-state="running"] #lottie-check {{
-                    display: block !important;
-                }}
-                body:not([data-lottie-action="change"]) body[data-test-script-state="running"] #lottie-check {{
-                    display: block !important;
-                }}
-                
-                /* Show change animation */
-                body[data-lottie-action="change"] .stApp[data-test-script-state="running"] #lottie-change {{
-                    display: block !important;
-                }}
-                body[data-lottie-action="change"] body[data-test-script-state="running"] #lottie-change {{
-                    display: block !important;
-                }}
-            `;
-            parentDoc.head.appendChild(style);
+            /* Switch logic based on body attribute */
+            body:not([data-lottie-action="change"]) .stApp[data-test-script-state="running"] #lottie-check {{
+                display: block !important;
+            }}
             
-            // 4. Setup interaction listener to detect what user clicked
+            body[data-lottie-action="change"] .stApp[data-test-script-state="running"] #lottie-change {{
+                display: block !important;
+            }}
+        `;
+        parentDoc.head.appendChild(style);
+        
+        // 4. Setup interaction listener (Ensure only 1 listener is attached)
+        if (!parentDoc.body.dataset.lottieListenerAttached) {{
             parentDoc.addEventListener('mousedown', (e) => {{
-                // Detect click on segmented control (Export format switcher)
-                if (e.target.closest('[data-testid="stSegmentedControl"]')) {{
+                let isChange = false;
+                
+                // Very robust detection for the export/download section
+                let el = e.target;
+                while (el && el !== parentDoc.body) {{
+                    if (el.dataset && el.dataset.testid) {{
+                        let tid = el.dataset.testid.toLowerCase();
+                        if (tid.includes('segment') || tid.includes('radio') || tid.includes('download')) {{
+                            isChange = true;
+                            break;
+                        }}
+                    }}
+                    el = el.parentElement;
+                }}
+                
+                const txt = (e.target.textContent || "").toLowerCase();
+                if (txt.includes("sql") || txt.includes("excel") || txt.includes("csv") || txt.includes("ekspor")) {{
+                    isChange = true;
+                }}
+                
+                if (isChange) {{
                     parentDoc.body.setAttribute('data-lottie-action', 'change');
                 }} else {{
                     parentDoc.body.setAttribute('data-lottie-action', 'check');
                 }}
             }}, true);
-            
-            // 5. Render players
-            script.onload = () => {{
-                loaderDiv.innerHTML = `
-                    <lottie-player id="lottie-check" class="my-lottie-player" src="{uri_check}" background="transparent" speed="1" style="width: 250px; height: 250px;" loop autoplay></lottie-player>
-                    <lottie-player id="lottie-change" class="my-lottie-player" src="{uri_change}" background="transparent" speed="1" style="width: 250px; height: 250px;" loop autoplay></lottie-player>
-                `;
-                
-                const stApp = parentDoc.querySelector('.stApp');
-                if (stApp) {{
-                    stApp.appendChild(loaderDiv);
-                }} else {{
-                    parentDoc.body.appendChild(loaderDiv);
-                }}
-            }};
+            parentDoc.body.dataset.lottieListenerAttached = "true";
+        }}
+        
+        // 5. Render players
+        loaderDiv.innerHTML = `
+            <lottie-player id="lottie-check" class="my-lottie-player" src="{uri_check}" background="transparent" speed="1" style="width: 250px; height: 250px;" loop autoplay></lottie-player>
+            <lottie-player id="lottie-change" class="my-lottie-player" src="{uri_change}" background="transparent" speed="1" style="width: 250px; height: 250px;" loop autoplay></lottie-player>
+        `;
+        
+        const stApp = parentDoc.querySelector('.stApp');
+        if (stApp) {{
+            stApp.appendChild(loaderDiv);
+        }} else {{
+            parentDoc.body.appendChild(loaderDiv);
         }}
     </script>
     """
