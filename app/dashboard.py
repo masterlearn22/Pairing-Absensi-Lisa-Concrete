@@ -638,6 +638,7 @@ def main():
                     nip = str(nip)
                     if nip.startswith('209'): return "Outsourcing Baru"
                     if nip.startswith('206') or nip.startswith('216'): return "PHL (Harian Lepas)"
+                    if nip.startswith('207') or nip.startswith('217'): return "Pekerja bali"
                     if nip.startswith('201') or nip.startswith('202') or nip.startswith('203'): return "Tetap"
                     if nip.startswith('100'): return "Staf"
                     return "Tidak Teridentifikasi"
@@ -767,6 +768,7 @@ def main():
             nip_str = str(nip).strip()
             if nip_str.startswith('209'): return 'Outsourcing Baru'
             if nip_str.startswith('206') or nip_str.startswith('216'): return 'PHL (Harian Lepas)'
+            if nip_str.startswith('207') or nip_str.startswith('217'): return 'Pekerja bali'
             if nip_str.startswith('201') or nip_str.startswith('202') or nip_str.startswith('203'): return 'Tetap / Kontrak'
             if nip_str.startswith('100'): return 'Staf'
             return 'Lainnya'
