@@ -302,11 +302,13 @@ def load_raw_data():
 
 def hitung_lembur_row(row):
     try:
-        if pd.isna(row['Waktu_Keluar']) or row['Waktu_Keluar'] == '-' or pd.isna(row['Waktu_Masuk']) or row['Waktu_Masuk'] == '-':
+        jam_keluar_val = row.get('Jam_Keluar', row.get('Waktu_Keluar'))
+        jam_masuk_val = row.get('Jam_Masuk', row.get('Waktu_Masuk'))
+        if pd.isna(jam_keluar_val) or jam_keluar_val == '-' or pd.isna(jam_masuk_val) or jam_masuk_val == '-':
             return "-"
 
-        jam_keluar_str = str(row['Waktu_Keluar'])
-        jam_masuk_str = str(row['Waktu_Masuk'])
+        jam_keluar_str = str(jam_keluar_val)
+        jam_masuk_str = str(jam_masuk_val)
 
         # Ekstrak string format 'YYYY-MM-DD HH:MM:SS' menjadi komponen time
         time_out_str = jam_keluar_str.split(' ')[1] if ' ' in jam_keluar_str else jam_keluar_str

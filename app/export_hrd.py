@@ -42,8 +42,8 @@ def generate_export_hrd(df_paired, start_date, end_date):
         tgl_absensi = str(r['Tanggal']).strip()
         tanggal = tgl_absensi # Sama dengan tgl_absensi
         
-        jam_masuk = str(r.get('Waktu_Masuk', ''))
-        jam_pulang = str(r.get('Waktu_Keluar', ''))
+        jam_masuk = str(r.get('Jam_Masuk', r.get('Waktu_Masuk', '')))
+        jam_pulang = str(r.get('Jam_Keluar', r.get('Waktu_Keluar', '')))
         
         if pd.isna(jam_masuk) or jam_masuk == '-': jam_masuk = ""
         if pd.isna(jam_pulang) or jam_pulang == '-': jam_pulang = ""
@@ -53,9 +53,15 @@ def generate_export_hrd(df_paired, start_date, end_date):
         
         if jam_masuk and jam_pulang:
             try:
-                # Parse datetime
-                dt_in = pd.to_datetime(jam_masuk)
-                dt_out = pd.to_datetime(jam_pulang)
+                # Gabungkan tanggal dan jam agar parsing harinya akurat
+                dt_in = pd.to_datetime(f"{tgl_absensi} {jam_masuk}")
+                
+                # Jika jam pulang lebih kecil dari jam masuk, asumsikan lewat tengah malam (hari berikutnya)
+                dt_out_temp = pd.to_datetime(f"{tgl_absensi} {jam_pulang}")
+                if dt_out_temp < dt_in:
+                    dt_out_temp += pd.Timedelta(days=1)
+                dt_out = dt_out_temp
+                
                 durasi_sec = (dt_out - dt_in).total_seconds()
                 durasi_jam = round(durasi_sec / 3600.0, 2)
                 
@@ -67,7 +73,7 @@ def generate_export_hrd(df_paired, start_date, end_date):
                 pass
         elif jam_masuk:
             try:
-                dt_in = pd.to_datetime(jam_masuk)
+                dt_in = pd.to_datetime(f"{tgl_absensi} {jam_masuk}")
                 jam_masuk = f"{hari_map[dt_in.weekday()]}, {jam_masuk}"
             except Exception:
                 pass
